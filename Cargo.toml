@@ -29,7 +29,7 @@ tokio = { version = "1.54.1", features = ["io-util", "rt", "sync", "time"] }
 toml = "1.1.8"
 # 核心照 git 依赖钉住一个提交（同网页仓库的做法、同 pins.toml 的核心）：升级就是改这里的 rev 和 pins.toml、过三台 CI。
 # 只经门面用：找数据根、资源目录，连核心，拉起核心。
-miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "6f622547beecaa1b39319ab1afa0cd9ceb277561" }
+miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "e9ed4565a743c73c67361e156bd88679fed4d65c" }
 
 # 测试里拿暂停的时钟试「问不出话」（过了 rpc::SLOW 才回的），不用真等；两头一起跑用 `join!`。
 [dev-dependencies]

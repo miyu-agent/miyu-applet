@@ -4,11 +4,11 @@
 
 [core]
 repo = "miyu-agent/miyu"
-rev = "6f622547beecaa1b39319ab1afa0cd9ceb277561"
+rev = "e9ed4565a743c73c67361e156bd88679fed4d65c"
 
 [web]
 repo = "miyu-agent/miyu-web"
-rev = "9dd8af831cc6e407f23403b612f083dfde3cb577"
+rev = "b261de591fed815b2f651b81f6fb06a43aef6b73"
 
 # Windows 安装包带的 PowerShell 7（施工 AP-5，原来外壳的 DT-9；项目主人 2026-10-31 定：带官方 zip 版，模型在 5.1 上老写 `&&`）。
 # 核心先找资源目录的 pwsh\pwsh.exe（核心 SW-5）。照当前 LTS（7.6）的最新补丁；升级：改版本和两个校验值（官方发版说明里的
