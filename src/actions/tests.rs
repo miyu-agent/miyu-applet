@@ -50,7 +50,7 @@ fn each_page_has_its_arguments() {
     assert_eq!(Page::Access.args(), ["web", "--settings", "access"]);
     assert_eq!(
         Page::Package("miyu-im".into()).args(),
-        ["web", "--package", "miyu-im"]
+        ["pkg", "page", "miyu-im"]
     );
     assert_eq!(
         Page::Session("019a-1".into()).args(),

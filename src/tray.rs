@@ -120,7 +120,7 @@ fn menu(text: &Text, autostart: bool, extras: &Extras) -> Result<(Menu, Items), 
         shortcut("CmdOrCtrl+Q"),
     );
     put_icon(&quit, menu_icon(icon::QUIT));
-    // 软件包挂的入口：清单写了 `[tray]`、开着的包一个一行，字是核心照连接的语言挑好的，点了 `miyu web --package <编号>`。
+    // 软件包挂的入口：清单写了 `[tray]`、开着的包一个一行，字是核心照连接的语言挑好的，点了 `miyu pkg page <编号>`。
     let packages: Vec<MenuItem> = extras
         .packages
         .iter()

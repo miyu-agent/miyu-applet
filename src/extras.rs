@@ -18,7 +18,7 @@ pub const ANY: &str = "0.0.0.0";
 /// 托盘菜单里一个软件包的一行。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
-    /// 包的编号：点了 `miyu web --package <编号>`。
+    /// 包的编号：点了 `miyu pkg page <编号>`。
     pub package: String,
     /// 那一行的字。
     pub name: String,
