@@ -65,7 +65,7 @@
        - 设没设访问密码：打开前现连现问，看握手回应的 `password_set`（核心参考 `connection.md`「hello」：头照它决定「允许局域网访问」开不开得了）；设过的才写，没设的、老核心不说的不写，改成 `miyu web --settings access`（网页 W-1085：开「通用」页、滚到「访问」那一组）。密码是在网页里设的，托盘收不到推送，所以不记着、每次点都问。
        - 「在手机上打开…」：`miyu web --settings access`（局域网地址、二维码在那一组）。
    - **这台电脑**：
-     - 「开机时启动」：打勾的开关（Windows 照当前用户的 `Run` 注册表项，值名 `Miyu`；macOS 照登录项 `SMAppService`；Linux 照 `~/.config/autostart/miyu-applet.desktop`，照 `XDG_CONFIG_HOME`）。开机起来的带 `--autostart`，不开浏览器，只常驻。托盘是照 `MIYU_HOME` 指的数据根起来的（不在默认的 `~/.miyu`），打开开关时把它一起写进去，开机照同一个数据根起：Linux 的 `Exec` 写成 `env MIYU_HOME=… <程序> --autostart`，macOS 写进 LaunchAgent 的 `EnvironmentVariables`；Windows 的 `Run` 项带不了环境变量，照默认（施工 AP-14，2026-11-07 项目主人装来试用时，数据根在 `~/.cache/miyu-tui-home`，开机会连到旧版的 `~/.miyu`）。
+     - 「开机时启动」：打勾的开关（Windows 照当前用户的 `Run` 注册表项，值名 `Miyu`；macOS 照登录项 `SMAppService`；Linux 照 `~/.config/autostart/miyu-applet.desktop`，照 `XDG_CONFIG_HOME`）。开机起来的带 `--autostart`，不开浏览器，只常驻。托盘是照 `MIYU_HOME` 指的数据根起来的（不在默认的 `~/.miyu`），打开开关时把它一起写进去，开机照同一个数据根起：三个平台的启动项都在程序后面写 `--home <数据根>`（同点了通知照网址拉起时那一个参数），Windows 的 `Run` 项也带得上（施工 AP-14、AP-17，2026-11-07 项目主人装来试用时，数据根在 `~/.cache/miyu-tui-home`，开机会连到旧版的 `~/.miyu`；AP-14 先用环境变量做了 Linux、macOS，AP-17 换成参数，三个平台一个写法）。托盘自己是照 `--home` 或者 `MIYU_HOME` 起来的才写，默认的不写。
        - macOS 实际用的是用户的 LaunchAgent（`~/Library/LaunchAgents/io.github.miyu-agent.miyu-applet.plist`，`RunAtLoad`，只在图形登录时起；AP-2）：`SMAppService` 要调 Objective-C 的接口（仓库 `forbid(unsafe_code)`），还要装成签过名的 `.app` 才认。系统设置的「登录项」里一样看得到、关得掉。
        - 打勾照现在真的开着没有：点了照反过来设，设完再读一遍；设不成的弹一句。Linux 上文件里写了 `Hidden=true`（桌面环境的设置里关掉的）算关着。
      - 「打开日志所在的文件夹」：核心、网页、托盘的日志都在那里（数据根的 `var/log/`），出了问题照它查。还没有的（核心没起过）弹一句「还没有日志」，不替核心建。

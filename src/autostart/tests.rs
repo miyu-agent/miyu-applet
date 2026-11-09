@@ -74,7 +74,7 @@ fn the_launch_agent_runs_at_login_with_the_argument() {
     assert!(plist.contains("<key>RunAtLoad</key>\n  <true/>"));
 }
 
-/// 托盘照别的数据根起的（施工 AP-14）：开机也照它起；默认的那几项不加。
+/// 托盘照别的数据根起的（施工 AP-14、AP-17）：开机也照它起，三个平台都写 `--home`；默认的不加。
 #[test]
 fn a_data_root_set_at_start_goes_into_the_login_item() {
     let entry = desktop_entry(
@@ -82,30 +82,39 @@ fn a_data_root_set_at_start_goes_into_the_login_item() {
         Some(Path::new("/home/u/.cache/miyu home")),
     );
     assert!(entry.contains(
-        "\nExec=env \"MIYU_HOME=/home/u/.cache/miyu home\" /home/u/.local/lib/miyu-applet/bin/miyu-applet --autostart\n"
+        "\nExec=/home/u/.local/lib/miyu-applet/bin/miyu-applet --home \"/home/u/.cache/miyu home\" --autostart\n"
     ));
-    assert!(!desktop_entry(Path::new("/usr/bin/miyu-applet"), None).contains("MIYU_HOME"));
+    assert!(!desktop_entry(Path::new("/usr/bin/miyu-applet"), None).contains("--home"));
     let plist = launch_agent(
         Path::new("/Applications/Miyu.app/Contents/MacOS/miyu-applet"),
         Some(Path::new("/Users/u/Miyu & data")),
     );
     assert!(plist.contains(
-        "<key>EnvironmentVariables</key>\n  <dict>\n    <key>MIYU_HOME</key>\n    <string>/Users/u/Miyu &amp; data</string>\n  </dict>"
+        "<string>/Applications/Miyu.app/Contents/MacOS/miyu-applet</string>\n    <string>--home</string>\n    <string>/Users/u/Miyu &amp; data</string>\n    <string>--autostart</string>"
     ));
+    assert!(!plist.contains("EnvironmentVariables"));
     assert!(
         !launch_agent(
             Path::new("/Applications/Miyu.app/Contents/MacOS/miyu-applet"),
             None
         )
-        .contains("EnvironmentVariables")
+        .contains("--home")
     );
 }
 
 #[test]
 fn the_run_value_quotes_the_program() {
     assert_eq!(
-        run_value(Path::new(r"C:\Program Files\Miyu\miyu-applet.exe")),
+        run_value(Path::new(r"C:\Program Files\Miyu\miyu-applet.exe"), None),
         r#""C:\Program Files\Miyu\miyu-applet.exe" --autostart"#
+    );
+    // 明说的数据根（施工 AP-17）：同网址协议登记的写法
+    assert_eq!(
+        run_value(
+            Path::new(r"C:\Program Files\Miyu\miyu-applet.exe"),
+            Some(Path::new(r"D:\Miyu data"))
+        ),
+        r#""C:\Program Files\Miyu\miyu-applet.exe" --home "D:\Miyu data" --autostart"#
     );
 }
 
