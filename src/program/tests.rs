@@ -146,10 +146,16 @@ fn the_install_script_places_under_home_come_first() {
     }
     assert_eq!(dirs[0], home.join(".local/lib/miyu"));
     assert_eq!(dirs[1], home.join(".local/bin"));
-    let brew = dirs.iter().position(|d| d == Path::new("/opt/homebrew/bin"));
+    let brew = dirs
+        .iter()
+        .position(|d| d == Path::new("/opt/homebrew/bin"));
     assert_eq!(brew.is_some(), cfg!(target_os = "macos"));
     let found = in_dirs(&dirs, |p| p == home.join(".local/bin/miyu"));
     assert_eq!(found, Some(home.join(".local/bin/miyu")));
-    assert!(fallback_dirs(Some(Path::new("relative"))).iter().all(|d| d.is_absolute()));
+    assert!(
+        fallback_dirs(Some(Path::new("relative")))
+            .iter()
+            .all(|d| d.is_absolute())
+    );
     assert!(!fallback_dirs(None).contains(&home.join(".local/bin")));
 }
