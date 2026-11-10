@@ -104,7 +104,7 @@
 
 - Linux x86_64、aarch64：`miyu-applet-<版本>-linux-<架构>.tar.gz`（`packaging/solo.py`），一层 `miyu-applet-<版本>-linux-<架构>/` 照 `/usr` 摆：`bin/miyu-applet`、`share/applications/miyu-applet.desktop`、`share/icons/hicolor/{32x32,128x128,256x256}/apps/miyu-applet.png`、`share/licenses/miyu-applet/`（托盘自己的 `LICENSE`、第三方许可证清单）。
 - macOS：`miyu-applet-<版本>-macos-aarch64.zip`，里面是只装托盘的 `Miyu.app`（`packaging/macos-solo.json`：不带核心的程序和资源，`LSUIElement` 照旧，`Resources/licenses/` 托盘自己的两份）。
-- 托盘照 `PATH` 找系统装的 `miyu`；macOS 从访达、开机启动拉起的图形程序 `PATH` 只有 `/usr/bin:/bin:/usr/sbin:/sbin`，`PATH` 里也没有的再看 `/opt/homebrew/bin`、`/usr/local/bin`（`src/program.rs`）。完整的包里核心就在托盘旁边，先找到它，两种包不打架。
+- 托盘照 `PATH` 找系统装的 `miyu`；macOS 从访达、开机启动拉起的图形程序 `PATH` 只有 `/usr/bin:/bin:/usr/sbin:/sbin`，`PATH` 里也没有的先看家目录下安装脚本装的 `~/.local/lib/miyu/`、`~/.local/bin/`（AP-19，2026-11-10 项目主人：Mac 上照安装脚本装的，托盘找不到主程序；Linux 也看这两处），再看 `/opt/homebrew/bin`、`/usr/local/bin`（`src/program.rs`）。完整的包里核心就在托盘旁边，先找到它，两种包不打架。
 - 发版附件另带 `SHA256SUMS`（全部附件）。和完整的包一样没签名。
 
 安装包里不再有网页视图，Linux 上不再要 WebKitGTK。

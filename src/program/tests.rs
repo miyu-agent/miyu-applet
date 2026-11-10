@@ -127,9 +127,29 @@ fn audit5_relative_path_entries_are_not_searched() {
 fn the_fallback_dirs_are_searched_in_order_after_the_path() {
     let root = std::env::temp_dir();
     let (a, b) = (root.join("fa"), root.join("fb"));
-    let (a, b) = (a.to_str().unwrap(), b.to_str().unwrap());
-    let wanted = Path::new(b).join(exe("miyu"));
-    assert_eq!(in_dirs(&[a, b], |p| p == wanted), Some(wanted.clone()));
-    assert_eq!(in_dirs(&[a, b], |_| false), None);
+    let wanted = b.join(exe("miyu"));
+    let dirs = [a, b];
+    assert_eq!(in_dirs(&dirs, |p| p == wanted), Some(wanted.clone()));
+    assert_eq!(in_dirs(&dirs, |_| false), None);
     assert_eq!(in_dirs(&[], |_| true), None);
+}
+
+/// 安装脚本装在家目录下（`~/.local/lib/miyu/miyu`，`~/.local/bin/miyu` 链过去）：从访达拉起、`PATH` 里没有的也找得到，先于 Homebrew
+/// 的前缀（AP-19）；家目录不是绝对路径的不看。Windows 上不看这几处。
+#[test]
+fn the_install_script_places_under_home_come_first() {
+    let home = Path::new("/Users/me");
+    let dirs = fallback_dirs(Some(home));
+    if cfg!(windows) {
+        assert!(dirs.is_empty());
+        return;
+    }
+    assert_eq!(dirs[0], home.join(".local/lib/miyu"));
+    assert_eq!(dirs[1], home.join(".local/bin"));
+    let brew = dirs.iter().position(|d| d == Path::new("/opt/homebrew/bin"));
+    assert_eq!(brew.is_some(), cfg!(target_os = "macos"));
+    let found = in_dirs(&dirs, |p| p == home.join(".local/bin/miyu"));
+    assert_eq!(found, Some(home.join(".local/bin/miyu")));
+    assert!(fallback_dirs(Some(Path::new("relative"))).iter().all(|d| d.is_absolute()));
+    assert!(!fallback_dirs(None).contains(&home.join(".local/bin")));
 }
