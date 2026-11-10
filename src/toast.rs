@@ -2,15 +2,19 @@
 //! macOS 是 NSUserNotificationCenter，Windows 是 WinRT 的 toast。一条一个后台线程：发出去，等人点了或者关了；点了（通知本身、
 //! 「打开」按钮）照 [`Toaster::new`] 给的回调打开那个会话。
 //!
+//! 标题、正文、头像照 [`Note`]（AP-20，2026-11-10 项目主人：系统通知照会话的人格来）：标题是人格的名字，无人格的写「Miyu」；人格有头像的
+//! 把图写进托盘自己目录的 `avatars/<版本>.<扩展名>`，交给通知当图；没头像的、无人格的不带图（原来带托盘的 logo，不再带）。
+//!
 //! 三个平台做得到的不一样（关在这里，别处不分平台）：
-//! - Linux：图标是写进托盘自己目录的 logo（`notification.png`），带 `desktop-entry` 提示（`miyu-applet`，同安装包的 `.desktop`）；同一个
+//! - Linux：头像走 `image-path` 提示，带 `desktop-entry` 提示（`miyu-applet`，同安装包的 `.desktop`）；同一个
 //!   `tag` 的换掉上一条：记着每个 `tag` 上一条的编号，下一条带着它发（`replaces_id`）。点了是通知服务发回的 `ActionInvoked`
 //!   （默认动作 `default`）。
 //! - Windows：toast 照应用身份（AUMID）[`APP_ID`] 发，系统照开始菜单里带这个身份的快捷方式（Tauri 打包的 MSI 自带）写名字、画图标；
 //!   没装（直接跑编出来的程序）的不一定弹得出。不走 notify-rust，自己拼（`winrt`，AP-4 补：库拼的没有 `launch`，点正文、通知中心里点
 //!   都回不来）：正文和「打开」按钮点了都交回 `Activated`，同一个 `tag` 的换掉上一条。只在托盘还在跑时回得来。
-//! - macOS：照 [`APP_ID`] 认装好的 `Miyu.app`，图标照它；找不到的照库的默认（访达）。点了要等：带一个「打开」按钮，库才等人点。
-//!   不换掉上一条。
+//! - Windows 的头像放在 toast 的 `appLogoOverride`（圆形裁剪），照文件地址读。
+//! - macOS：照 [`APP_ID`] 认装好的 `Miyu.app`，图标照它；找不到的照库的默认（访达）。头像走库的 `image_path`（`content_image`，横幅
+//!   右边一张图；左边的应用图标换不了）。点了要等：带一个「打开」按钮，库才等人点。不换掉上一条。
 
 #[cfg(not(windows))]
 use std::collections::HashMap;
@@ -22,7 +26,7 @@ use std::sync::{Mutex, PoisonError};
 #[cfg(not(windows))]
 use notify_rust::{Notification, NotificationResponse};
 
-use crate::alerts::Note;
+use crate::alerts::{Avatar, Note};
 use crate::log;
 use crate::text::{Text, key};
 
@@ -40,12 +44,8 @@ pub struct Toaster(Arc<Shared>);
 
 struct Shared {
     text: Arc<Text>,
-    /// 通知的图标（Linux）。
-    #[cfg_attr(
-        windows,
-        expect(dead_code, reason = "Windows 的图标照开始菜单快捷方式的，不用另写")
-    )]
-    icon: Option<PathBuf>,
+    /// 托盘自己的目录：头像写在它的 `avatars/` 里。
+    own: Option<PathBuf>,
     #[cfg_attr(
         windows,
         expect(
@@ -65,9 +65,10 @@ impl Toaster {
         own: Option<&Path>,
         on_click: impl Fn(Option<String>) + Send + Sync + 'static,
     ) -> Self {
+        platform::prepare();
         Self(Arc::new(Shared {
             text,
-            icon: platform::prepare(own),
+            own: own.map(Path::to_path_buf),
             on_click: Box::new(on_click),
             #[cfg(not(windows))]
             shown: Mutex::new(Shown::default()),
@@ -89,15 +90,19 @@ impl Toaster {
 /// Windows：自己拼 toast（`winrt`），点了照 `miyu-applet:` 网址拉起托盘、打开那个会话（`protocol`），不用回调。
 #[cfg(windows)]
 fn show_now(shared: &Shared, note: &Note) {
-    let body = shared.text.get(note.why.key());
+    let body = note.body(shared.text.get(note.why.key()));
     let link = crate::protocol::link(note.session.as_deref());
+    let image = note
+        .avatar()
+        .and_then(|avatar| avatar_file(shared.own.as_deref(), avatar));
     if let Err(error) = winrt::show(
         APP_ID,
-        &note.title,
-        body,
+        note.heading(),
+        &body,
         shared.text.get(key::NOTIFY_OPEN),
         &link,
         &note.tag,
+        image.as_deref(),
     ) {
         log::now_and_then("notification", &format!("notification not shown: {error}"));
     }
@@ -106,13 +111,17 @@ fn show_now(shared: &Shared, note: &Note) {
 #[cfg(not(windows))]
 fn show_now(shared: &Shared, note: &Note) {
     let mut notification = Notification::new();
+    let body = note.body(shared.text.get(note.why.key()));
     notification
         .appname("Miyu")
-        .summary(&note.title)
-        .body(shared.text.get(note.why.key()))
+        .summary(note.heading())
+        .body(&body)
         .action("default", shared.text.get(key::NOTIFY_OPEN));
     let replaces = shared.shown().replaces(&note.tag);
-    platform::dress(&mut notification, shared.icon.as_deref(), replaces);
+    let image = note
+        .avatar()
+        .and_then(|avatar| avatar_file(shared.own.as_deref(), avatar));
+    platform::dress(&mut notification, image.as_deref(), replaces);
     let handle = match notification.show() {
         Ok(handle) => handle,
         Err(error) => {
@@ -141,6 +150,32 @@ fn show_now(shared: &Shared, note: &Note) {
     });
     if let Err(error) = waited {
         log::line(&format!("notification {} not followed: {error}", note.tag));
+    }
+}
+
+/// 头像写成文件（通知服务、系统照路径读图）：托盘自己目录的 `avatars/<版本>.<扩展名>`，已经有一样的不再写；没有托盘目录、写不成的
+/// 不带图（记一行）。
+fn avatar_file(own: Option<&Path>, avatar: &Avatar) -> Option<PathBuf> {
+    let dir = own?.join("avatars");
+    let name: String = avatar
+        .version
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .collect();
+    if name.is_empty() {
+        return None;
+    }
+    let path = dir.join(format!("{name}.{}", avatar.ext));
+    if std::fs::read(&path).is_ok_and(|bytes| bytes == avatar.bytes) {
+        return Some(path);
+    }
+    let written = crate::folder::private(&dir).and_then(|()| std::fs::write(&path, &avatar.bytes));
+    match written {
+        Ok(()) => Some(path),
+        Err(error) => {
+            log::line(&format!("no avatar for the notification: {error}"));
+            None
+        }
     }
 }
 
@@ -191,35 +226,17 @@ impl Shown {
 /// Linux 这一类（freedesktop 的通知服务）。
 #[cfg(all(unix, not(target_os = "macos")))]
 mod platform {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use notify_rust::{Hint, Notification, NotificationHandle};
 
-    use crate::log;
+    /// 起来时不用做什么（原来把 logo 写进托盘目录当通知的图标；AP-20 起没头像的不带图）。
+    pub fn prepare() {}
 
-    /// 通知用的 logo：同应用图标。
-    const ICON: &[u8] = include_bytes!("../icons/128x128.png");
-
-    /// 把 logo 写进托盘自己的目录（通知服务照路径读图）；写不成的不带图标。
-    pub fn prepare(own: Option<&Path>) -> Option<PathBuf> {
-        let own = own?;
-        let path = own.join("notification.png");
-        if std::fs::read(&path).is_ok_and(|bytes| bytes == ICON) {
-            return Some(path);
-        }
-        let written = crate::folder::private(own).and_then(|()| std::fs::write(&path, ICON));
-        match written {
-            Ok(()) => Some(path),
-            Err(error) => {
-                log::line(&format!("no icon for notifications: {error}"));
-                None
-            }
-        }
-    }
-
-    pub fn dress(notification: &mut Notification, icon: Option<&Path>, replaces: Option<u32>) {
-        if let Some(icon) = icon.and_then(Path::to_str) {
-            notification.icon(icon);
+    /// 头像走 `image-path` 提示；带 `desktop-entry` 提示；同一个 `tag` 的换掉上一条。
+    pub fn dress(notification: &mut Notification, image: Option<&Path>, replaces: Option<u32>) {
+        if let Some(image) = image.and_then(Path::to_str) {
+            notification.image_path(image);
         }
         notification.hint(Hint::DesktopEntry("miyu-applet".to_owned()));
         if let Some(id) = replaces {
@@ -232,14 +249,10 @@ mod platform {
     }
 }
 
-/// Windows：图标照开始菜单快捷方式的，不用另写；通知自己拼（[`winrt`]）。
+/// Windows：应用图标照开始菜单快捷方式的，不用另写；通知自己拼（[`winrt`]）。
 #[cfg(windows)]
 mod platform {
-    use std::path::{Path, PathBuf};
-
-    pub fn prepare(_: Option<&Path>) -> Option<PathBuf> {
-        None
-    }
+    pub fn prepare() {}
 }
 
 #[cfg(windows)]
@@ -248,20 +261,24 @@ mod winrt;
 /// macOS：起来时认一次 `Miyu.app`。
 #[cfg(target_os = "macos")]
 mod platform {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use notify_rust::{Notification, NotificationHandle};
 
     use crate::log;
 
-    pub fn prepare(_: Option<&Path>) -> Option<PathBuf> {
+    pub fn prepare() {
         if let Err(error) = notify_rust::set_application(super::APP_ID) {
             log::line(&format!("notifications go out as the default app: {error}"));
         }
-        None
     }
 
-    pub fn dress(_: &mut Notification, _: Option<&Path>, _: Option<u32>) {}
+    /// 头像走库的 `image_path`（`content_image`）；不换掉上一条。
+    pub fn dress(notification: &mut Notification, image: Option<&Path>, _: Option<u32>) {
+        if let Some(image) = image.and_then(Path::to_str) {
+            notification.image_path(image);
+        }
+    }
 
     pub fn id_of(_: &NotificationHandle) -> Option<u32> {
         None

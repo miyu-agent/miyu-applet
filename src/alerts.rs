@@ -5,8 +5,11 @@
 //! - 会话表推来的一项和手上的比：`busy` 去掉了是「回答完了」，`waiting` 冒出来是「等你回答」或「等你确认」（哪一种会话表不说，
 //!   照那一轮的事件看，见 [`waiting_why`]）；读进来、重连时换上的整份不算（不会把旧的再报一遍）；子会话、一次性的会话、整理记忆的
 //!   会话不弹。
-//! - 标题是会话的标题，没有的照第一句（`preview`），再没有写「Miyu」；新会话第一轮做完时核心起的标题多半还没到，等它最多
-//!   [`TITLE_WAIT`]，到了照标题写，没到照第一句。正文只写为什么通知，不带 AI 写的字。
+//! - 标题、图标照会话的人格（AP-20，2026-11-10 项目主人：系统通知照会话的人格来，同网页 W-1143）：标题写人格的名字，人格有头像的
+//!   带头像，没头像的不带图标；无人格的会话、账号级的提醒标题写「Miyu」、不带图标。人格的名字、头像连接那边照 `persona.get`、
+//!   `persona.avatar` 问好（[`Face`]），这里只记会话表那一项的 `persona`。
+//! - 正文是会话的标题（没有的照第一句 `preview`）接为什么通知：「修 CI · 回答完了」，都没有的只写为什么；不带 AI 写的字。新会话第一轮
+//!   做完时核心起的标题多半还没到，等它最多 [`TITLE_WAIT`]，到了照标题写，没到照第一句。
 //! - `tag`：同一个会话的同一种换掉上一条（`<会话>:done`、`<会话>:ask`、`<会话>:approve`）；定时任务跑完了同那个会话的「回答完了」，
 //!   两条互相换掉；定时任务的记录坏了是 `schedules.reset`。
 
@@ -57,9 +60,57 @@ pub struct Note {
     /// 点了打开哪个会话；账号级的、没有会话的是 `None`（打开网页界面）。
     pub session: Option<String>,
     pub why: Why,
+    /// 会话的标题（没有的照第一句、定时任务那句话），写进正文；都没有的是空的。
     pub title: String,
     /// 同一个 `tag` 的换掉上一条。
     pub tag: String,
+    /// 这个会话用的人格（会话表那一项的 `persona`）；无人格的、账号级的是 `None`。
+    pub persona: Option<String>,
+    /// 人格的名字、头像（连接那边照 [`Note::persona`] 问好了填上）；没问到的、无人格的是 `None`。
+    pub face: Option<Face>,
+}
+
+/// 一个人格在通知上的样子：名字、头像。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Face {
+    pub name: String,
+    pub avatar: Option<Avatar>,
+}
+
+/// 人格的头像：版本（核心给的，图的字节的 SHA-256 前 16 位）、扩展名（`png`、`jpg`、`webp`）、图本身。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Avatar {
+    pub version: String,
+    pub ext: &'static str,
+    pub bytes: Vec<u8>,
+}
+
+/// 无人格的会话、账号级的提醒的标题：程序名。
+pub const PROGRAM: &str = "Miyu";
+
+impl Note {
+    /// 通知的标题：人格的名字，没有人格（或者没问到）的写程序名。
+    pub fn heading(&self) -> &str {
+        self.face
+            .as_ref()
+            .map(|face| face.name.trim())
+            .filter(|name| !name.is_empty())
+            .unwrap_or(PROGRAM)
+    }
+
+    /// 通知的正文：会话的标题接为什么（`why` 是那一句的字），没有标题的只写为什么。
+    pub fn body(&self, why: &str) -> String {
+        if self.title.is_empty() {
+            why.to_owned()
+        } else {
+            format!("{} · {why}", self.title)
+        }
+    }
+
+    /// 要带的头像：有人格、有头像的才有。
+    pub fn avatar(&self) -> Option<&Avatar> {
+        self.face.as_ref()?.avatar.as_ref()
+    }
 }
 
 /// 会话表里一项，只留要用的。
@@ -72,6 +123,8 @@ struct Seen {
     quiet: bool,
     title: Option<String>,
     preview: Option<String>,
+    /// 这个会话用的人格；无人格的是 `None`。
+    persona: Option<String>,
 }
 
 fn seen(entry: &Value) -> Seen {
@@ -89,6 +142,7 @@ fn seen(entry: &Value) -> Seen {
         quiet: entry["parent"].is_string() || entry["oneshot"] == true || entry["kind"] == "dream",
         title: text("title"),
         preview: text("preview"),
+        persona: text("persona"),
     }
 }
 
@@ -183,12 +237,15 @@ impl Sessions {
     pub fn note(&mut self, id: &str, why: Why, now: Instant) -> Option<Note> {
         let tag = format!("{id}:{}", tag_of(why));
         let entry = self.known.get(id);
+        let persona = entry.and_then(|seen| seen.persona.clone());
         if let Some(title) = entry.and_then(|seen| seen.title.clone()) {
             return Some(Note {
                 session: Some(id.to_owned()),
                 why,
                 title,
                 tag,
+                persona,
+                face: None,
             });
         }
         if !self.held.iter().any(|held| held.note.tag == tag) {
@@ -197,6 +254,8 @@ impl Sessions {
                 why,
                 title: String::new(),
                 tag,
+                persona,
+                face: None,
             };
             self.held.push(Held {
                 note,
@@ -211,7 +270,7 @@ impl Sessions {
         self.held.iter().map(|held| held.until).min()
     }
 
-    /// 到点了还没等到标题的：照第一句写，再没有写「Miyu」。
+    /// 到点了还没等到标题的：照第一句写，再没有的正文只写为什么。
     pub fn due(&mut self, now: Instant) -> Vec<Note> {
         let (late, rest) = std::mem::take(&mut self.held)
             .into_iter()
@@ -228,12 +287,12 @@ impl Sessions {
             .collect()
     }
 
-    /// 会话 `id` 的标题：标题，第一句，`fallback`（定时任务那句话），再没有「Miyu」。
+    /// 会话 `id` 的标题：标题，第一句，`fallback`（定时任务那句话），再没有是空的。
     fn title(&self, id: &str, fallback: Option<&str>) -> String {
         let seen = self.known.get(id);
         seen.and_then(|seen| seen.title.as_deref().or(seen.preview.as_deref()))
             .or(fallback.map(str::trim).filter(|text| !text.is_empty()))
-            .unwrap_or("Miyu")
+            .unwrap_or_default()
             .to_owned()
     }
 
@@ -276,13 +335,17 @@ impl Sessions {
                     why,
                     title: self.title(id, prompt),
                     tag: format!("{id}:{}", tag_of(Why::Done)),
+                    persona: self.known.get(id).and_then(|seen| seen.persona.clone()),
+                    face: None,
                 })
             }
             "schedules.reset" => Some(Note {
                 session: None,
                 why: Why::SchedulesReset,
-                title: "Miyu".to_owned(),
+                title: String::new(),
                 tag: "schedules.reset".to_owned(),
+                persona: None,
+                face: None,
             }),
             _ => None,
         }

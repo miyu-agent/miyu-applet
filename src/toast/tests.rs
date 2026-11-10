@@ -31,3 +31,20 @@ fn a_closed_note_is_forgotten_and_the_next_one_starts_fresh() {
     assert!(shown.answered(7, second, true));
     assert_eq!(shown.replaces("a:done"), None);
 }
+
+/// 人格的头像写进托盘目录的 `avatars/<版本>.<扩展名>`（AP-20）；同样的不再写；版本里只留字母数字；没有托盘目录的不带图。
+#[test]
+fn an_avatar_is_written_once_under_avatars() {
+    let own = std::env::temp_dir().join(format!("miyu-applet-avatar-{}", std::process::id()));
+    let avatar = Avatar {
+        version: "01/23..ab".into(),
+        ext: "png",
+        bytes: vec![1, 2, 3],
+    };
+    let path = avatar_file(Some(&own), &avatar).expect("写得进");
+    assert_eq!(path, own.join("avatars").join("0123ab.png"));
+    assert_eq!(std::fs::read(&path).unwrap(), [1, 2, 3]);
+    assert_eq!(avatar_file(Some(&own), &avatar), Some(path));
+    assert_eq!(avatar_file(None, &avatar), None);
+    std::fs::remove_dir_all(&own).expect("删得掉临时目录");
+}

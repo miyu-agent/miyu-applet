@@ -15,7 +15,7 @@ use windows::core::HSTRING;
 /// 同一个应用的通知都放在这一组里，组里照 `tag` 换。
 const GROUP: &str = "miyu";
 
-/// 弹一条：点了去 `link`。`tag` 最长 64 个字（WinRT 的规矩），长了截掉。
+/// 弹一条：点了去 `link`；`image` 是人格的头像文件（AP-20），没有的不带图。`tag` 最长 64 个字（WinRT 的规矩），长了截掉。
 ///
 /// # Errors
 ///
@@ -27,10 +27,18 @@ pub fn show(
     open: &str,
     link: &str,
     tag: &str,
+    image: Option<&std::path::Path>,
 ) -> Result<(), String> {
     let doc = XmlDocument::new().map_err(|error| error.to_string())?;
-    doc.LoadXml(&HSTRING::from(template(title, body, open, link)))
-        .map_err(|error| error.to_string())?;
+    let image = image.map(file_url);
+    doc.LoadXml(&HSTRING::from(template(
+        title,
+        body,
+        open,
+        link,
+        image.as_deref(),
+    )))
+    .map_err(|error| error.to_string())?;
     let toast =
         ToastNotification::CreateToastNotification(&doc).map_err(|error| error.to_string())?;
     let short: String = tag.chars().take(64).collect();
@@ -45,17 +53,34 @@ pub fn show(
         .map_err(|error| error.to_string())
 }
 
-/// toast 的 XML：标题、正文两行；正文、「打开」按钮点了都照网址激活，去 `link`。
-pub fn template(title: &str, body: &str, open: &str, link: &str) -> String {
+/// toast 的 XML：标题、正文两行；有头像的放在 `appLogoOverride`（圆形裁剪，`image` 是文件地址）；正文、「打开」按钮点了都照网址激活，
+/// 去 `link`。
+pub fn template(title: &str, body: &str, open: &str, link: &str, image: Option<&str>) -> String {
     let link = escape(link);
+    let image = image.map_or_else(String::new, |src| {
+        format!(
+            "<image placement=\"appLogoOverride\" hint-crop=\"circle\" src=\"{}\"/>",
+            escape(src)
+        )
+    });
     format!(
         "<toast launch=\"{link}\" activationType=\"protocol\"><visual><binding template=\"ToastGeneric\">\
-         <text>{}</text><text>{}</text></binding></visual><actions>\
+         <text>{}</text><text>{}</text>{image}</binding></visual><actions>\
          <action content=\"{}\" arguments=\"{link}\" activationType=\"protocol\"/></actions></toast>",
         escape(title),
         escape(body),
         escape(open)
     )
+}
+
+/// 本机文件的地址（`file:///C:/…`）：反斜杠换成斜杠。
+pub fn file_url(path: &std::path::Path) -> String {
+    let text = path.to_string_lossy().replace('\\', "/");
+    if text.starts_with('/') {
+        format!("file://{text}")
+    } else {
+        format!("file:///{text}")
+    }
 }
 
 /// XML 里要转的五个字。

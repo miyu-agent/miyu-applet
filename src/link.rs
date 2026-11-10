@@ -209,7 +209,7 @@ async fn streams<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         None
     };
     loop {
-        let push = next_push(rpc, &mut notices, report).await?;
+        let push = next_push(rpc, &mut notices, report, slow).await?;
         if let Some(follow) = notices.as_mut() {
             follow.push(rpc, &push, report, slow).await?;
         }
@@ -241,6 +241,7 @@ async fn next_push<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     rpc: &mut Rpc<R, W>,
     notices: &mut Option<notices::Follow>,
     report: &dyn Fn(Report),
+    slow: &mut dyn FnMut(bool),
 ) -> Result<Value, Failure> {
     loop {
         let Some((follow, at)) = notices
@@ -252,7 +253,7 @@ async fn next_push<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         let wait = at.saturating_duration_since(Instant::now());
         match tokio::time::timeout(wait, rpc.push()).await {
             Ok(push) => return push,
-            Err(_) => follow.due(report),
+            Err(_) => follow.due(rpc, report, slow).await?,
         }
     }
 }
