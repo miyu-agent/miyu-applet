@@ -164,7 +164,7 @@ jobs:
           for f in licenses/README.txt licenses/miyu-applet/LICENSE licenses/miyu-applet/THIRD-PARTY-LICENSES.txt \
                    licenses/miyu/LICENSE licenses/miyu/THIRD-PARTY-LICENSES.txt licenses/miyu/LICENSES/Apache-2.0.txt \
                    licenses/miyu-web/LICENSE licenses/miyu-web/THIRD-PARTY-LICENSES.txt \
-                   packages/miyu-webui/LICENSE packages/miyu-webui/THIRD-PARTY-LICENSES.txt; do
+                   packages/webui/LICENSE packages/webui/THIRD-PARTY-LICENSES.txt; do
             grep -qx "/usr/share/miyu/$f" deb-files.txt || { echo "deb 里没有 $f"; exit 1; }
             grep -qx "/usr/share/miyu/$f" rpm-files.txt || { echo "rpm 里没有 $f"; exit 1; }
           done

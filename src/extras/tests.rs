@@ -4,7 +4,7 @@ use serde_json::json;
 
 fn listed() -> Value {
     json!({"packages": [
-        {"package": "miyu-im", "kind": "process", "enabled": true, "status": "running", "page": true, "tray": {"name": "打开通讯平台接入界面"}},
+        {"package": "im", "kind": "process", "enabled": true, "status": "running", "page": true, "tray": {"name": "打开通讯平台接入界面"}},
         {"package": "hello", "kind": "process", "enabled": false, "status": "off", "page": true, "tray": {"name": "打开打招呼"}},
         {"package": "aaa", "kind": "builtin", "page": true, "status": "ready", "tray": {"name": "  看一眼  "}},
         {"package": "no-tray", "kind": "process", "enabled": true, "status": "running", "page": true},
@@ -28,7 +28,7 @@ fn only_switched_on_packages_with_a_tray_line_are_listed_by_id() {
         names(&packages),
         [
             ("aaa".to_string(), "看一眼".to_string()),
-            ("miyu-im".to_string(), "打开通讯平台接入界面".to_string()),
+            ("im".to_string(), "打开通讯平台接入界面".to_string()),
         ]
     );
 }
@@ -39,7 +39,7 @@ fn a_change_replaces_or_removes_one_package() {
     packages.replace(&listed());
     // 只是变了的不算装卸。
     assert!(!packages.change(&json!({"package": "hello", "entry": {"package": "hello", "enabled": true, "status": "starting", "tray": {"name": "打开打招呼"}}})));
-    assert!(packages.change(&json!({"package": "miyu-im", "entry": null})));
+    assert!(packages.change(&json!({"package": "im", "entry": null})));
     assert!(!packages.change(&json!({"package": "aaa", "entry": {"package": "aaa", "status": "program_missing", "tray": {"name": "看一眼"}}})));
     assert!(packages.change(&json!({"package": "new", "entry": {"package": "new"}})));
     assert!(!packages.change(&json!({"package": "gone", "entry": null})));
@@ -101,19 +101,19 @@ fn only_changes_to_the_listen_address_count() {
 fn a_version_comes_from_the_listed_package_and_follows_changes() {
     let mut packages = Packages::default();
     packages.replace(&json!({"packages": [
-        {"package": "miyu-webui", "version": "0.1.0", "layer": "home"},
+        {"package": "webui", "version": "0.1.0", "layer": "home"},
         {"package": "blank", "version": "  "},
         {"package": "nameless"},
     ]}));
-    assert_eq!(packages.version("miyu-webui").as_deref(), Some("0.1.0"));
+    assert_eq!(packages.version("webui").as_deref(), Some("0.1.0"));
     assert_eq!(packages.version("blank"), None);
     assert_eq!(packages.version("nameless"), None);
     assert_eq!(packages.version("missing"), None);
     // 换成另一层的那一份（核心照层挑好推来的）：照新的
-    packages.change(&json!({"package": "miyu-webui", "entry": {"package": "miyu-webui", "version": "0.2.0", "layer": "system"}}));
-    assert_eq!(packages.version("miyu-webui").as_deref(), Some("0.2.0"));
-    packages.change(&json!({"package": "miyu-webui", "entry": null}));
-    assert_eq!(packages.version("miyu-webui"), None);
+    packages.change(&json!({"package": "webui", "entry": {"package": "webui", "version": "0.2.0", "layer": "system"}}));
+    assert_eq!(packages.version("webui").as_deref(), Some("0.2.0"));
+    packages.change(&json!({"package": "webui", "entry": null}));
+    assert_eq!(packages.version("webui"), None);
 }
 
 #[test]
@@ -121,14 +121,14 @@ fn a_package_covered_by_a_higher_layer_is_not_the_one_read() {
     let mut packages = Packages::default();
     // 核心 SD-1补：认的那份在前，被盖住的接在后面、带 shadowed 对象；F-9 的 covered: true 不算被盖住
     packages.replace(&json!({"packages": [
-        {"package": "miyu-webui", "layer": "home", "version": "0.2.0"},
-        {"package": "miyu-webui", "layer": "distro", "shadowed": {"by": "home", "version": "0.3.0", "over": "0.2.0", "newer": true}},
+        {"package": "webui", "layer": "home", "version": "0.2.0"},
+        {"package": "webui", "layer": "distro", "shadowed": {"by": "home", "version": "0.3.0", "over": "0.2.0", "newer": true}},
         {"package": "kit", "layer": "home", "version": "1.0", "covered": true},
     ]}));
-    assert_eq!(packages.version("miyu-webui").as_deref(), Some("0.2.0"));
+    assert_eq!(packages.version("webui").as_deref(), Some("0.2.0"));
     assert_eq!(packages.version("kit").as_deref(), Some("1.0"));
     // 推来被盖住那份的变动：认的那份不动
-    let changed = packages.change(&json!({"package": "miyu-webui", "entry": {"package": "miyu-webui", "layer": "distro", "shadowed": {"by": "home"}}}));
+    let changed = packages.change(&json!({"package": "webui", "entry": {"package": "webui", "layer": "distro", "shadowed": {"by": "home"}}}));
     assert!(!changed);
-    assert_eq!(packages.version("miyu-webui").as_deref(), Some("0.2.0"));
+    assert_eq!(packages.version("webui").as_deref(), Some("0.2.0"));
 }

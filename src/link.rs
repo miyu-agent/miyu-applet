@@ -53,7 +53,7 @@ pub enum Report {
     Packages(Vec<Entry>),
     /// 局域网开没开；`None` 是核心不认 `web.listen`（网页软件没装）。
     Lan(Option<bool>),
-    /// 核心用的网页包的版本（软件包列表里 `miyu-webui` 那一项；「关于」照它写）；`None` 是没装。
+    /// 核心用的网页包的版本（软件包列表里 `webui` 那一项；「关于」照它写）；`None` 是没装。
     Web(Option<String>),
     /// 弹一条系统通知。
     Note(Note),

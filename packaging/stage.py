@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # 搭安装包的内容（施工 DT-6，图纸 app.md「装在哪」）：核心、网页软件编好以后，照 Tauri 打包工具要的样子放进 dist/。
 #   dist/binaries/<程序>-<目标三元组>[.exe]  Tauri 的 externalBin：装在托盘程序旁边，名字去掉三元组
-#   dist/resources/                         核心仓库的整份 resources/，加网页包的文件夹 packages/miyu-webui/
+#   dist/resources/                         核心仓库的整份 resources/，加网页包的文件夹 packages/webui/
 #   dist/resources/licenses/                托盘、核心、网页三份许可证和第三方许可证清单（施工 AP-5，原来外壳的 DT-7）
 #   dist/resources/pwsh/                    只 Windows：官方的 PowerShell 7 zip 版解开（施工 AP-5，原来外壳的 DT-9），核心先找它
 #   dist/pins.txt                           钉的两个提交号，写进发版说明
 # 网页包的文件夹照网页仓库 tools/pack-web.py 装好的样子（网页的会话 2026-10-30 定）：清单没写 version 的补上（照网页的工作区版本）；
 # 网页 W-1095（0.1.0）起清单自己写 version 和 targets 三种，照原样用，version 要和工作区版本一样，
-# web.json、matugen/ 原样，许可证（仓库根的 LICENSE、miyu-webui/ 的第三方许可证清单）放包的根上，pages/ 是 web-demo 里给浏览器的七样，
+# web.json、matugen/ 原样，许可证（仓库根的 LICENSE、webui/ 的第三方许可证清单）放包的根上，pages/ 是 web-demo 里给浏览器的七样，
 # 程序放 bin/。等待页 loading.html 是给原来外壳的窗口用的，托盘不用，不带。
 #   python3 packaging/stage.py --core <核心检出> --web <网页检出> --triple <rustc 的 host> --out dist
 import argparse, hashlib, io, pathlib, re, shutil, sys, tomllib, urllib.request, zipfile
 
 # 核心带的三个程序（核心的主会话 2026-10-30 定）：主程序、沙盒助手、抽字的小程序。
 CORE_PROGRAMS = ['miyu', 'miyu-sandbox', 'miyu-extract']
-WEB_PACKAGE = 'miyu-webui'
+# 网页包的编号，也是网页仓库里那个文件夹的名字（2026-11-12 起包编号不带 miyu-）
+WEB_PACKAGE = 'webui'
 PAGES = ['index.html', 'distro.json', 'src', 'styles', 'packages', 'resources', 'vendor']
 
 
@@ -83,7 +84,7 @@ LICENSES_README = """Licenses of the software in this Miyu package.
 miyu-applet/   the tray app (miyu-applet): LICENSE (AGPL-3.0-or-later) and THIRD-PARTY-LICENSES.txt
 miyu/       the core (miyu, miyu-sandbox, miyu-extract and these resources): LICENSE (AGPL-3.0-or-later),
             LICENSES/ (Apache-2.0 for the parts listed in the core's README) and THIRD-PARTY-LICENSES.txt
-miyu-web/   the web app (packages/miyu-webui): LICENSE (AGPL-3.0-or-later) and THIRD-PARTY-LICENSES.txt
+miyu-web/   the web app (packages/webui): LICENSE (AGPL-3.0-or-later) and THIRD-PARTY-LICENSES.txt
 """
 
 
@@ -142,7 +143,7 @@ def main():
     (package / 'package.toml').write_text(manifest, encoding='utf-8')
     shutil.copy2(source / 'web.json', package / 'web.json')
     shutil.copytree(source / 'matugen', package / 'matugen')
-    # 许可证照 pack-web.py 放包的根上（网页的 0.1.0 起清单在 miyu-webui/ 里）：缺了就停，不出没有清单的包
+    # 许可证照 pack-web.py 放包的根上（网页的 0.1.0 起清单在 webui/ 里）：缺了就停，不出没有清单的包
     for src, name in ((source / 'THIRD-PARTY-LICENSES.txt', 'THIRD-PARTY-LICENSES.txt'), (args.web / 'LICENSE', 'LICENSE')):
         if not src.is_file():
             sys.exit(f'网页少了 {src}：安装包要带它（施工 AP-5）')

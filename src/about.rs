@@ -2,7 +2,7 @@
 //!
 //! - 托盘：这个程序编的时候的版本。
 //! - 核心：`miyu --version` 回的那一行。
-//! - 网页：核心软件包列表里 `miyu-webui` 那一项的版本（连着核心时托盘记着的，[`crate::link::Report::Web`]），就是核心真用的那一份：
+//! - 网页：核心软件包列表里 `webui` 那一项（2026-11-12 起包编号不带 `miyu-`）的版本（连着核心时托盘记着的，[`crate::link::Report::Web`]），就是核心真用的那一份：
 //!   出厂的、系统源加装的（`/usr/share/miyu/packages/`）、装上的（数据根 `opt/`），核心照层挑（核心设计 60，2026-11-05 core1：分包以后
 //!   核心的资源目录挪到 `/usr/lib/miyu/`，照资源目录读不到系统源装的网页）。没连上过核心的退回资源目录里网页包清单的 `version`
 //!   （打包时 `packaging/stage.py` 照网页仓库写进去的）。
@@ -14,7 +14,7 @@ use crate::program;
 use crate::text::{Text, key};
 
 /// 网页包的编号：软件包列表里它的 `package`，资源目录 `packages/` 下它的文件夹名（`packaging/stage.py` 的 `WEB_PACKAGE`）。
-pub const WEB_PACKAGE: &str = "miyu-webui";
+pub const WEB_PACKAGE: &str = "webui";
 
 /// 钉的一样：仓库和提交号。
 #[derive(Debug, Clone, PartialEq, Eq)]

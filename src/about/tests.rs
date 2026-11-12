@@ -29,7 +29,7 @@ fn the_core_version_drops_the_program_name() {
 
 #[test]
 fn the_web_version_comes_from_the_package_table() {
-    let manifest = "[package]\nversion = \"0.4.1\"\nid = \"miyu-webui\"\n";
+    let manifest = "[package]\nversion = \"0.4.1\"\nid = \"webui\"\n";
     assert_eq!(web_version(manifest), Some("0.4.1".into()));
     assert_eq!(web_version("[package]\nid = \"x\"\n"), None);
     assert_eq!(web_version("version = \"1\"\n"), None);
