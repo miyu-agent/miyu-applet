@@ -18,8 +18,7 @@
     "linux": {
       "deb": {
         "depends": [
-          "libgtk-3-0",
-          "bubblewrap"
+          "libgtk-3-0"
         ],
         "files": {
           "/usr/share/miyu": "dist/resources"
@@ -28,8 +27,7 @@
       },
       "rpm": {
         "depends": [
-          "gtk3",
-          "bubblewrap"
+          "gtk3"
         ],
         "files": {
           "/usr/share/miyu": "dist/resources"
