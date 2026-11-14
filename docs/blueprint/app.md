@@ -116,7 +116,7 @@
 - PowerShell 7（只 Windows）：官方 zip 版，版本和两个 SHA256 钉在 `pins.toml` 的 `[pwsh]`（7.6.9，7.6 是 LTS），打包时下载、核对，解进资源目录的 `pwsh\`，核心先找它（核心 SW-5）；MSI 装卸前停进程的名单有它。
 - `miyu-applet.exe` 的图标和名字：`build.rs` 编给 Windows 时用 `embed-resource` 把 `icons/icon.ico` 和版本信息（文件说明、产品名称「Miyu」）编进程序，资源管理器、任务管理器里是 Miyu 的图标和名字。release 照旧 `windows_subsystem = "windows"`（`src/main.rs`）。
 - macOS：`packaging/macos/Info.plist` 写 `LSUIElement = true`，经 `macos.json` 的 `infoPlist` 并进 `Miyu.app` 的 `Info.plist`；运行时另设 `Accessory`（AP-2）。
-- deb、rpm：Tauri 的打包工具总加 WebKitGTK 的依赖，打完由 `packaging/drop-webkit.py` 去掉（只改依赖，文件不动）；GTK 3、bubblewrap 照旧要。
+- deb、rpm：Tauri 的打包工具总加 WebKitGTK 的依赖，打完由 `packaging/drop-webkit.py` 去掉（只改依赖，文件不动）；GTK 3 照旧要；不再要 bubblewrap（核心施工 LV-5 起 Linux 沙盒只用 Landlock，2026-11-14 三平台摸底查出包还写着它，去掉）。
 - 打包流水线拆开三个平台的包核对上面这些（`release.yml`「拆开核对」）。
 
 版本号（施工 AP-12，2026-11-06 core1：项目主人定核心、终端、网页、托盘四件统一用「年.月.这个月第几版」，从 0 起、月不补零，预发布加 `-rc.N`，一起发版时同一个号，见核心设计 59「版本号」）：`Cargo.toml` 的 `version` 照这个写（例如 `2026.11.0`、`2026.11.1`、`2026.11.0-rc.1`），标签是 `v` 加上它。几种安装包认不了原样的，打包时由 `packaging/version.py` 换：

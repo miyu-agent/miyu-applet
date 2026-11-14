@@ -154,8 +154,8 @@ jobs:
           test "$got" = "$want" || { echo "rpm 的版本是 $got，该是 $want"; exit 1; }
           echo "deb $(dpkg-deb -f "$deb" Version)，rpm $got"
           if grep -i webkit deb-depends.txt rpm-requires.txt; then echo "还要 WebKitGTK"; exit 1; fi
-          for want in libgtk-3-0 bubblewrap; do grep -qx "$want" deb-depends.txt || { echo "deb 少了 $want"; exit 1; }; done
-          for want in gtk3 bubblewrap; do grep -qx "$want" rpm-requires.txt || { echo "rpm 少了 $want"; exit 1; }; done
+          for want in libgtk-3-0; do grep -qx "$want" deb-depends.txt || { echo "deb 少了 $want"; exit 1; }; done
+          for want in gtk3; do grep -qx "$want" rpm-requires.txt || { echo "rpm 少了 $want"; exit 1; }; done
           # 改过的 rpm 头的摘要对得上（没签名，只查摘要）
           rpm -K --nosignature "$rpm"
           # deb 里的路径写成 usr/…（Tauri 的打包工具不带 ./），也可能带 ./：都换成 /usr/…
