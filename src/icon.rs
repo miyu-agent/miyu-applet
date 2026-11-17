@@ -10,10 +10,8 @@ pub struct Rgba {
     pub height: u32,
 }
 
-/// 托盘图标（`icons/source/build.sh` 出的）：macOS 是模板图，系统照菜单栏着色；别的是 logo 留白少的那一份（象牙色圆角底板）。
-#[cfg(target_os = "macos")]
-pub const TRAY: &[u8] = include_bytes!("../icons/tray-template.png");
-#[cfg(not(target_os = "macos"))]
+/// 托盘图标（`icons/source/build.sh` 出的）：三个平台都用 logo 留白少的那一份彩色图（象牙色圆角底板）。
+/// macOS 上托盘库缩到菜单栏的 22 点高，64px 在两倍屏上也够清楚。
 pub const TRAY: &[u8] = include_bytes!("../icons/tray.png");
 
 /// 菜单里的图标（Lucide，`icons/source/lucide/` 是矢量原稿，`icons/source/build.sh` 出图）：灰色线条，macOS 上当模板图用。
