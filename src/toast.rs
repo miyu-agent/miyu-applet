@@ -9,11 +9,11 @@
 //! - Linux：头像走 `image-path` 提示，带 `desktop-entry` 提示（`miyu-applet`，同安装包的 `.desktop`）；同一个
 //!   `tag` 的换掉上一条：记着每个 `tag` 上一条的编号，下一条带着它发（`replaces_id`）。点了是通知服务发回的 `ActionInvoked`
 //!   （默认动作 `default`）。
-//! - Windows：toast 照应用身份（AUMID）[`APP_ID`] 发，系统照开始菜单里带这个身份的快捷方式（Tauri 打包的 MSI 自带）写名字、画图标；
+//! - Windows：toast 照应用身份（AUMID）`APP_ID` 发，系统照开始菜单里带这个身份的快捷方式（Tauri 打包的 MSI 自带）写名字、画图标；
 //!   没装（直接跑编出来的程序）的不一定弹得出。不走 notify-rust，自己拼（`winrt`，AP-4 补：库拼的没有 `launch`，点正文、通知中心里点
 //!   都回不来）：正文和「打开」按钮点了都交回 `Activated`，同一个 `tag` 的换掉上一条。只在托盘还在跑时回得来。
 //! - Windows 的头像放在 toast 的 `appLogoOverride`（圆形裁剪），照文件地址读。
-//! - macOS：照 [`APP_ID`] 认装好的 `Miyu.app`，图标照它；找不到的照库的默认（访达）。头像走库的 `image_path`（`content_image`，横幅
+//! - macOS：照 `APP_ID` 认装好的 `Miyu.app`，图标照它；找不到的照库的默认（访达）。头像走库的 `image_path`（`content_image`，横幅
 //!   右边一张图；左边的应用图标换不了）。点了要等：带一个「打开」按钮，库才等人点。不换掉上一条。
 
 #[cfg(not(windows))]
