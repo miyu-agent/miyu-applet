@@ -186,12 +186,9 @@ pub fn create(text: &Text, look: &Look, autostart: bool, extras: &Extras) -> Res
     let image = icon::decode(icon::TRAY)?;
     let tray_icon =
         Icon::from_rgba(image.pixels, image.width, image.height).map_err(|e| e.to_string())?;
-    // macOS 上是模板图，系统照菜单栏着色。
-    #[cfg(target_os = "macos")]
-    let builder = TrayIconBuilder::new().with_icon_templated(tray_icon);
-    #[cfg(not(target_os = "macos"))]
-    let builder = TrayIconBuilder::new().with_icon(tray_icon);
-    let built = builder
+    // 三个平台都是彩色图，macOS 也不当模板图（2026-11-17 项目主人定）。
+    let built = TrayIconBuilder::new()
+        .with_icon(tray_icon)
         .with_id("miyu")
         .with_tooltip("Miyu")
         .with_menu(Box::new(menu))

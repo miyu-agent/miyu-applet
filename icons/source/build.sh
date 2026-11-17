@@ -3,12 +3,11 @@
 # 两份留白，各有 miyu-agent-<边长>x<边长>.png（16、32、48、64、128、256、512、1024），透明底。
 #   sh build.sh <那一套的目录>    出应用图标和托盘图标（要 ImageMagick 7）
 #   sh build.sh menu              只出菜单里的图标（要 rsvg-convert、oxipng）
-#   sh build.sh template          只出 macOS 托盘的模板图（要 rsvg-convert）
 #
 # - 应用图标（Tauri 的 bundle.icon、Linux 包里 hicolor 的图标、Windows 编进程序的 icon.ico）：原留白（original-margin）。
 #   logo.png 是原留白的 1024px，留着当原图。
-# - 托盘（Linux、Windows）：留白少的（compact-margin）64px，托盘缩到 16～32px 时徽章大一些、看得清。
-# - 托盘（macOS）：模板图，黑色加透明，系统自己照菜单栏着色。新 logo 的模板图还没定，现在照旧从老的矢量稿 miyu-simple.svg 出 44px。
+# - 托盘（三个平台都是这一张彩色图，macOS 也不用模板图）：留白少的（compact-margin）64px，托盘缩到 16～32px 时徽章大一些、看得清；
+#   macOS 菜单栏缩到 22 点高，两倍屏上 44px，64px 够用。
 # - 菜单里的图标（施工 AP-2）：lucide/ 下的 Lucide 原稿（ISC 许可，见 lucide/LICENSE；和网页用的同一套），灰色线条 32px。
 #   深色、浅色菜单上都看得见；macOS 当模板图用，系统照菜单着色。
 set -eu
@@ -27,9 +26,8 @@ menu() {
     oxipng -q -o 4 --strip safe --nc $out/menu/*.png
 }
 if [ "${1:-}" = menu ]; then menu; exit 0; fi
-if [ "${1:-}" = template ]; then rsvg-convert -w 44 -h 44 miyu-simple.svg -o $out/tray-template.png; exit 0; fi
 
-set_dir=${1:?用法：sh build.sh <logo 那一套的目录> | menu | template}
+set_dir=${1:?用法：sh build.sh <logo 那一套的目录> | menu}
 o="$set_dir/original-margin/miyu-agent"
 c="$set_dir/compact-margin/miyu-agent"
 
