@@ -104,4 +104,12 @@ fn a_real_core_goes_up_and_down() {
     let text = crate::text::Text::of(crate::text::Lang::En);
     crate::quit::stop_core(&miyu, &text).unwrap();
     until(&receive, |got| *got == Report::Down);
+    // 核心 CS-5：「停止」「退出 Miyu」走 `core.stop`，留下人停的记号，别的头断了线自己重连不再拉起；「启动」是人要用的，照拉、删掉记号。
+    let stopped = root.run().join("stopped");
+    assert!(stopped.is_file(), "托盘叫停的是人停的");
+    crate::actions::start_core(&miyu, &root).unwrap();
+    until(&receive, |got| *got == Report::Up);
+    assert!(!stopped.exists(), "「启动」以后不再是人停的");
+    crate::quit::stop_core(&miyu, &text).unwrap();
+    until(&receive, |got| *got == Report::Down);
 }
