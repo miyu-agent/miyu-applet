@@ -295,3 +295,39 @@ fn the_last_open_question_or_approval_says_which_kind_of_wait() {
     assert_eq!(waiting_why(&page(vec![])), Why::Approve);
     assert_eq!(waiting_why(&Value::Null), Why::Approve);
 }
+
+/// 一段人生结束了（核心 LF-14，2026-11-17 项目主人定「人生结束怎么告诉主人」）：只弹她自己结束的，标题照人格，正文「美羽 的人生结束了」，
+/// 点了打开那个会话；人结束的、有网页开着那个会话的不弹；遗言不写。
+#[test]
+fn a_life_she_ended_herself_is_told_by_name() {
+    let sessions = table(json!([
+        {"session": "s-life", "title": "美羽的一天", "persona": "miyu"},
+        {"session": "s-open", "persona": "luna", "viewed": true}
+    ]));
+    let ended = |session: &str, by: &str| {
+        json!({"kind": "life.ended", "session": session, "persona": "miyu", "name": "美羽", "by": by,
+            "last_words": "再见"})
+    };
+    let note = sessions
+        .notice(&ended("s-life", "self"), None)
+        .expect("她自己结束的弹");
+    assert_eq!(note.why, Why::LifeEnded);
+    assert_eq!(note.session.as_deref(), Some("s-life"), "点了打开那个会话");
+    assert_eq!(note.persona.as_deref(), Some("miyu"), "标题照人格");
+    assert_eq!(note.tag, "s-life:life");
+    assert_eq!(
+        note.body("{name} 的人生结束了"),
+        "美羽 的人生结束了",
+        "不写会话标题、不写遗言"
+    );
+    assert_eq!(
+        sessions.notice(&ended("s-life", "owner"), None),
+        None,
+        "人结束的不弹"
+    );
+    assert_eq!(
+        sessions.notice(&ended("s-open", "self"), None),
+        None,
+        "网页开着的由它弹"
+    );
+}

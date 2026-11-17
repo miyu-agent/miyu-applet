@@ -41,12 +41,13 @@ pub mod key {
     pub const NOTIFY_SCHEDULE_RAN: &str = "notify.schedule_ran";
     pub const NOTIFY_SCHEDULE_FAILED: &str = "notify.schedule_failed";
     pub const NOTIFY_SCHEDULES_RESET: &str = "notify.schedules_reset";
+    pub const NOTIFY_LIFE_ENDED: &str = "notify.life_ended";
     pub const NOTIFY_OPEN: &str = "notify.open";
 }
 
 /// 上面每一个键，测试查三份里都有。
 #[cfg(test)]
-const KEYS: [&str; 37] = [
+const KEYS: [&str; 38] = [
     key::STATUS_RUNNING,
     key::STATUS_RUNNING_LAN,
     key::STATUS_STARTING,
@@ -83,6 +84,7 @@ const KEYS: [&str; 37] = [
     key::NOTIFY_SCHEDULE_RAN,
     key::NOTIFY_SCHEDULE_FAILED,
     key::NOTIFY_SCHEDULES_RESET,
+    key::NOTIFY_LIFE_ENDED,
     key::NOTIFY_OPEN,
 ];
 
