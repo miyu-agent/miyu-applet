@@ -10,8 +10,7 @@ pub struct Rgba {
     pub height: u32,
 }
 
-/// 托盘图标（施工 DT-5，`icons/source/build.sh` 出的）：macOS 是模板图，系统照菜单栏着色；别的带浅色底板，深色、浅色的任务栏上
-/// 都看得见。
+/// 托盘图标（`icons/source/build.sh` 出的）：macOS 是模板图，系统照菜单栏着色；别的是 logo 留白少的那一份（象牙色圆角底板）。
 #[cfg(target_os = "macos")]
 pub const TRAY: &[u8] = include_bytes!("../icons/tray-template.png");
 #[cfg(not(target_os = "macos"))]

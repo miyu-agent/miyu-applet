@@ -32,7 +32,7 @@
 | `src/quit.rs` | 彻底退出：藏窗口、叫核心停、退 |
 | `src/notify.rs`、`src/notify/`（一个网页视图一份） | 网页视图的通知权限 |
 | `src/text.rs`、`resources/text/{zh,en,ja}.toml` | 给人看的字 |
-| `icons/` | 应用图标、托盘图标；`icons/source/` 是原图 `logo.png`、两份矢量稿和出图的脚本 `build.sh`（施工 DT-5：换图重跑） |
+| `icons/` | 应用图标、托盘图标；照项目主人给的一套 PNG 原样拷：应用图标用原留白，Linux、Windows 托盘用留白少的；macOS 托盘的模板图照旧从老矢量稿 `miyu-simple.svg` 出（新 logo 的模板图未定）。`icons/source/` 是原图 `logo.png`（原留白 1024px）、两份老矢量稿和出图的脚本 `build.sh`（换图：`sh build.sh <那一套的目录>`） |
 | `.github/workflows/ci.yml` | 三平台：格式、clippy、测试、行数、正式版的程序（试验用） |
 | `pins.toml`、`packaging/`、`.github/workflows/release.yml` | 打安装包：钉的核心和网页版本，搭内容的脚本，三个平台的打包配置，Windows 安装包的自定义步骤，AUR 的 PKGBUILD 模板（施工 DT-6，「装在哪」） |
 
