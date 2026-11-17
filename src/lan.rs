@@ -52,9 +52,11 @@ pub fn set(root: &DataRoot, on: bool) -> Result<Outcome, Failed> {
 }
 
 async fn change(root: &DataRoot, on: bool) -> Result<Outcome, Failed> {
-    let (connection, token) = miyu_client::connect::connect(root)
-        .await
-        .map_err(|error| Failed::Said(error.to_string()))?;
+    // 连不上的照托盘的语言写核心给的那一句（核心 EN-1），没说法的照原话。
+    let lang = crate::text::Lang::of_locale(&crate::text::system_locale());
+    let (connection, token) = miyu_client::connect::connect(root).await.map_err(|error| {
+        Failed::Said(crate::reason::say(error.said(), &error.to_string(), lang))
+    })?;
     let (read, write) = tokio::io::split(connection);
     let mut rpc = Rpc::new(read, write);
     // 这里慢不慢不用报：外面整个限了时。

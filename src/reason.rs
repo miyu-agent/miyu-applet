@@ -1,34 +1,40 @@
-//! 核心起不来的原因写给人看（核心 LC-1，61f1f3ef2）：数据根认不出的那几种带代码（`data_root_not_ours`、`data_root_old_layout`、
-//! `data_root_other_layout`），照核心资源目录里的说法 `core/start/<代码>`、托盘的语言写，`{path}` 填数据根的位置；没代码的（读写出错、
-//! 老核心）、资源目录找不到、那一句没有的，照核心给的原话。原来一律是原话，原话写死中文，英文、日文系统上也是中文（AP-3 测出来的）。
+//! 核心起不来、连不上的原因写给人看（核心 LC-1、EN-1、EN-2）：核心的错交说法（`said()`，`core/start/<代码>` 和要填的几样；
+//! EN-2 起核心起不来的每一步都带代码，原因只是会变的那一段），照核心资源目录里的字、托盘的语言写整句；没说法的（读写出错）、
+//! 资源目录找不到、那一句没有的，照原话。原来只有数据根认不出的三种照说法，别的照原话写死中文（EN-2 测出来的）。
 
-use std::collections::BTreeMap;
-
-use miyu_client::places::{DataRoot, Env, ResourceRoot};
+use miyu_client::connect::StartError;
+use miyu_client::places::{Env, ResourceRoot};
 use miyu_client::protocol::Said;
 use miyu_client::texts::Human;
 
 use crate::text::Lang;
 
-/// 带 `code` 的照说法写，别的照 `reason`。
-pub fn say(code: Option<&str>, reason: &str, root: &DataRoot, lang: Lang) -> String {
-    code.and_then(|code| coded(code, root, lang))
-        .unwrap_or_else(|| reason.to_owned())
+/// 有 `said` 的照说法写，别的照 `fallback`（错的原话）。
+pub fn say(said: Option<Said>, fallback: &str, lang: Lang) -> String {
+    say_in(&Env::current(), said, fallback, lang)
 }
 
-/// 照代码找那一句；资源目录、那种语言的字、那一句有一样没有的是空的。
-fn coded(code: &str, root: &DataRoot, lang: Lang) -> Option<String> {
-    let resources = ResourceRoot::locate(&Env::current()).ok()?;
+/// 拉起核心没成（[`StartError`]）：照说法写整句，没说法的照原话。
+pub fn start_failed(error: &StartError, lang: Lang) -> String {
+    start_failed_in(&Env::current(), error, lang)
+}
+
+/// 同 [`start_failed`]，资源目录照 `env` 找。
+fn start_failed_in(env: &Env, error: &StartError, lang: Lang) -> String {
+    say_in(env, error.said(), &error.to_string(), lang)
+}
+
+/// 同 [`say`]，资源目录照 `env` 找。
+fn say_in(env: &Env, said: Option<Said>, fallback: &str, lang: Lang) -> String {
+    said.and_then(|said| spoken(env, &said, lang))
+        .unwrap_or_else(|| fallback.to_owned())
+}
+
+/// 照说法找那一句；资源目录、那种语言的字、那一句、要填的有一样没有的是空的。
+fn spoken(env: &Env, said: &Said, lang: Lang) -> Option<String> {
+    let resources = ResourceRoot::locate(env).ok()?;
     let human = Human::load(&resources, lang.code()).ok()?;
-    human.say(&said(code, root))
-}
-
-/// `core/start/<代码>` 那一句，`path` 是数据根的位置。
-fn said(code: &str, root: &DataRoot) -> Said {
-    Said {
-        key: format!("core/start/{code}"),
-        fields: BTreeMap::from([("path".to_owned(), root.path().display().to_string())]),
-    }
+    human.say(said)
 }
 
 #[cfg(test)]

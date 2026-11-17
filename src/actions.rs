@@ -282,9 +282,9 @@ fn start_now(ctx: &Ctx) -> bool {
 /// Miyu 的数据根，新版不认」），状态行「出错了」下面照它写。
 pub(crate) fn start_core(miyu: &Path, root: &DataRoot) -> Result<(), String> {
     let lang = crate::text::Lang::of_locale(&crate::text::system_locale());
-    // 认不出的数据根带代码（核心 LC-1）：照托盘的语言写，别的照原话
+    // 核心的错交说法（核心 LC-1、EN-2）：照托盘的语言写整句，没说法的照原话
     root.prepare()
-        .map_err(|error| crate::reason::say(error.code(), &error.to_string(), root, lang))?;
+        .map_err(|error| crate::reason::say(error.said(), &error.to_string(), lang))?;
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -297,12 +297,7 @@ pub(crate) fn start_core(miyu: &Path, root: &DataRoot) -> Result<(), String> {
             command
         }))
         .map(drop)
-        .map_err(|error| match error {
-            miyu_client::connect::StartError::Refused { code, reason } => {
-                crate::reason::say(code.as_deref(), &reason, root, lang)
-            }
-            other => other.to_string(),
-        })
+        .map_err(|error| crate::reason::start_failed(&error, lang))
 }
 
 /// 调一次 `miyu`，记下耗时和退出码（不记输出：`miyu web` 印的网址里有票）。
