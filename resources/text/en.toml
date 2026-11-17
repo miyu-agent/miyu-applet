@@ -35,4 +35,5 @@
 "notify.schedule_ran" = "Scheduled task finished"
 "notify.schedule_failed" = "Scheduled task didn't finish"
 "notify.schedules_reset" = "The scheduled task records were damaged and replaced with a new set; the old scheduled tasks are gone"
+"notify.life_ended" = "{name}'s life has ended"
 "notify.open" = "Open"
