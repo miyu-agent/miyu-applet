@@ -7,7 +7,7 @@
 - 支持 Linux、macOS（M 系列）、Windows。Linux 上要 GTK 3，托盘走 StatusNotifierItem（KDE、waybar 这类自带；GNOME 要装 AppIndicator 扩展才显示托盘）。
 - 终端界面不在这里，另装 [miyu-agent/miyu-tui](https://github.com/miyu-agent/miyu-tui)。
 
-怎么装（Linux 的 deb、rpm，macOS 的 dmg，Windows 的 msi，还有 AUR、Homebrew）见 [安装](https://github.com/miyu-agent/miyu/blob/main/docs/guide/install.md)；菜单、通知、开机时启动、局域网访问怎么用见 [托盘](https://github.com/miyu-agent/miyu/blob/main/docs/guide/heads/applet.md)。
+怎么装（Linux 的 deb、rpm，macOS 的 dmg，Windows 的 msi，还有 AUR、Homebrew）见 [安装](https://github.com/miyu-agent/miyu/blob/main/docs/zh/guide/install.md)；菜单、通知、开机时启动、局域网访问怎么用见 [托盘](https://github.com/miyu-agent/miyu/blob/main/docs/zh/guide/heads/applet.md)。
 
 改这个仓库的代码先读 [`docs/blueprint/app.md`](docs/blueprint/app.md)。
 
