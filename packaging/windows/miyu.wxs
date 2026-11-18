@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Windows 安装包（MSI，x64）的自定义步骤（施工 DT-6；项目主人 2026-10-30 定安装程序要 64 位，NSIS 只有 32 位，换 WiX 出的 MSI）。
-  只有一步：装、卸、修之前把在跑的停掉，不然程序被占着换不掉、删不掉。先 `miyu core stop`，再照路径结束这个安装目录下还在跑的
-  miyu-web、miyu、miyu-extract、miyu-sandbox 和带的 pwsh（施工 AP-5：核心在沙盒里跑命令用的那个）（网页软件没有停的命令，它空闲
-  10 分钟才自己退）。用 64 位的 PowerShell（System64Folder），以安装的那个人跑（immediate），进程是他的。失败不挡安装（Return="ignore"）。
+  只有一步：装、卸、修之前把在跑的停掉，不然程序被占着换不掉、删不掉。先结束这个安装目录下的托盘程序 miyu-applet（审计 #081：原来漏了它，
+  覆盖安装、卸载时它占着自己要人重启），再 `miyu core stop`，最后照路径结束这个安装目录下还在跑的 miyu-web、miyu、miyu-extract、
+  miyu-sandbox 和带的 pwsh（施工 AP-5：核心在沙盒里跑命令用的那个）（网页软件没有停的命令，它空闲 10 分钟才自己退）。
+  在安装目录里起 PowerShell（Directory="INSTALLDIR"），目录照进程的当前目录取（DirectoryInfo，不经 PowerShell 的路径解析）、照字面比开头，不把路径拼进命令（审计 #081：原来拼进单引号里、
+  用 -like 比，目录名带单引号的整条命令坏掉、带方括号的当通配符）；第一次装时目录还不在、起不来，本来也没有要停的。
+  用 64 位的 PowerShell（System64Folder），以安装的那个人跑（immediate），进程是他的。失败不挡安装（Return="ignore"）。
+  命令里除了 [INSTALLDIR]、[System64Folder] 不写方括号、花括号（Windows Installer 会当属性、分组去填），所以筛进程的条件用
+  NewScriptBlock 从字符串建，StartsWith 的 5 是 OrdinalIgnoreCase。tests/msi_stop_running.rs 在 Windows 上照这里的写法真跑一遍。
   沙盒不用配：MXC 跑命令不要沙盒用户、不要管理员（核心的主会话 2026-10-30，蓝图 sandbox/windows-run.md）。
   经 tauri.conf 的 componentGroupRefs 引用 MiyuStopRunning 这一组，整个片段才进安装包。
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
     <ComponentGroup Id="MiyuStopRunning" />
-    <SetProperty Id="MIYU_POWERSHELL" Value="[System64Folder]WindowsPowerShell\v1.0\powershell.exe" Before="MiyuStopRunning" Sequence="execute" />
-    <CustomAction Id="MiyuStopRunning" Property="MIYU_POWERSHELL" Execute="immediate" Return="ignore"
-      ExeCommand="-NoProfile -NonInteractive -WindowStyle Hidden -Command &quot;&amp; '[INSTALLDIR]miyu.exe' core stop; Get-Process miyu-web,miyu,miyu-extract,miyu-sandbox,pwsh -ErrorAction SilentlyContinue | Where-Object Path -like '[INSTALLDIR]*' | Stop-Process -Force&quot;" />
+    <CustomAction Id="MiyuStopRunning" Directory="INSTALLDIR" Execute="immediate" Return="ignore"
+      ExeCommand="&quot;[System64Folder]WindowsPowerShell\v1.0\powershell.exe&quot; -NoProfile -NonInteractive -WindowStyle Hidden -Command &quot;$d = (New-Object IO.DirectoryInfo '.').FullName.TrimEnd('\') + '\'; $mine = $ExecutionContext.InvokeCommand.NewScriptBlock('$_.Path -and $_.Path.StartsWith($d, 5)'); Get-Process miyu-applet -ErrorAction SilentlyContinue | Where-Object $mine | Stop-Process -Force; &amp; ($d + 'miyu.exe') core stop; Get-Process miyu-web,miyu,miyu-extract,miyu-sandbox,pwsh -ErrorAction SilentlyContinue | Where-Object $mine | Stop-Process -Force&quot;" />
     <InstallExecuteSequence>
       <Custom Action="MiyuStopRunning" Before="InstallValidate" />
     </InstallExecuteSequence>
