@@ -55,6 +55,19 @@ fn reads_and_things_outside_do_not_count() {
     ));
 }
 
+#[test]
+fn reconnecting_waits_longer_each_time_until_a_steady_connection() {
+    let mut backoff = Backoff::default();
+    let waits: Vec<Duration> = (0..10).map(|_| backoff.after(Duration::ZERO)).collect();
+    assert_eq!(waits[0], SETTLE);
+    assert_eq!(waits[1], SETTLE * 2);
+    assert!(waits.windows(2).all(|pair| pair[0] <= pair[1]), "{waits:?}");
+    assert_eq!(*waits.last().unwrap(), LONGEST);
+    // 握过手、连着一阵子才断的：从头算。
+    assert_eq!(backoff.after(Duration::from_millis(500)), LONGEST);
+    assert_eq!(backoff.after(STEADY), SETTLE);
+}
+
 /// 两个真核心的测试用同一个数据根，一个一个跑。
 static REAL_CORE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -112,4 +125,56 @@ fn a_real_core_goes_up_and_down() {
     assert!(!stopped.exists(), "「启动」以后不再是人停的");
     crate::quit::stop_core(&miyu, &text).unwrap();
     until(&receive, |got| *got == Report::Down);
+}
+
+/// 审计 #097：核心接了连接、握手没回就断（套接字还在、对面一连就关）。原来每 150 毫秒再连一次、不报「已停止」，一直空转。
+/// 现在报「已停止」，再连一次比一次等得久：3 秒里连不到 8 次（原来 20 次上下）。
+#[cfg(unix)]
+#[test]
+fn a_core_that_hangs_up_at_once_is_down_and_retried_slower_and_slower() {
+    use std::os::unix::fs::DirBuilderExt;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let home = std::env::temp_dir().join(format!("miyu-applet-hangup-{}", std::process::id()));
+    if home.exists() {
+        std::fs::remove_dir_all(&home).unwrap();
+    }
+    let run = home.join("run");
+    std::fs::create_dir_all(&run).unwrap();
+    let own = home.join("sock");
+    std::fs::DirBuilder::new().mode(0o700).create(&own).unwrap();
+    let socket = own.join("s");
+    let listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+    std::fs::write(run.join("token"), "t\n").unwrap();
+    std::fs::write(run.join("socket"), format!("{}\n", socket.display())).unwrap();
+    let accepted = Arc::new(AtomicUsize::new(0));
+    let counter = Arc::clone(&accepted);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            counter.fetch_add(1, Ordering::SeqCst);
+            drop(stream);
+        }
+    });
+
+    let (send, receive) = std::sync::mpsc::channel();
+    let _waker = spawn(DataRoot::at(home.clone()), move |got| {
+        if send.send(got).is_err() {
+            // 测试已经看完了，后面再报的没人收。
+        }
+    });
+    let started = Instant::now();
+    let down = loop {
+        match receive.recv_timeout(Duration::from_secs(5)) {
+            Ok(Report::Down) => break true,
+            Ok(_) => {}
+            Err(_) => break false,
+        }
+    };
+    let window = Duration::from_secs(3).saturating_sub(started.elapsed());
+    std::thread::sleep(window);
+    let tries = accepted.load(Ordering::SeqCst);
+    assert!(down, "握手前断了要报「已停止」（3 秒里连了 {tries} 次）");
+    assert!(tries < 8, "再连要一次比一次等得久：3 秒里连了 {tries} 次");
+    std::fs::remove_dir_all(&home).unwrap();
 }
