@@ -30,7 +30,7 @@ pub fn show(
     image: Option<&std::path::Path>,
 ) -> Result<(), String> {
     let doc = XmlDocument::new().map_err(|error| error.to_string())?;
-    let image = image.map(file_url);
+    let image = image.map(super::file_url::file_url);
     doc.LoadXml(&HSTRING::from(template(
         title,
         body,
@@ -71,16 +71,6 @@ pub fn template(title: &str, body: &str, open: &str, link: &str, image: Option<&
         escape(body),
         escape(open)
     )
-}
-
-/// 本机文件的地址（`file:///C:/…`）：反斜杠换成斜杠。
-pub fn file_url(path: &std::path::Path) -> String {
-    let text = path.to_string_lossy().replace('\\', "/");
-    if text.starts_with('/') {
-        format!("file://{text}")
-    } else {
-        format!("file:///{text}")
-    }
 }
 
 /// XML 里要转的五个字。
