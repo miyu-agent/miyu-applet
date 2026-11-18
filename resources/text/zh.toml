@@ -36,5 +36,4 @@
 "notify.schedule_ran" = "定时任务跑完了"
 "notify.schedule_failed" = "定时任务没跑完"
 "notify.schedules_reset" = "定时任务的记录坏了，已换成新的一份，原来的定时任务都没了"
-"notify.life_ended" = "{name} 的人生结束了"
 "notify.open" = "打开"

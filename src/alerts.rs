@@ -12,8 +12,6 @@
 //!   做完时核心起的标题多半还没到，等它最多 [`TITLE_WAIT`]，到了照标题写，没到照第一句。
 //! - `tag`：同一个会话的同一种换掉上一条（`<会话>:done`、`<会话>:ask`、`<会话>:approve`）；定时任务跑完了同那个会话的「回答完了」，
 //!   两条互相换掉；定时任务的记录坏了是 `schedules.reset`。
-//! - 她自己结束了一段人生（核心 LF-14 的 `life.ended`，`by` 是 `self`）：标题照人格，正文「美羽 的人生结束了」，点了打开那个会话；
-//!   人结束的不弹，有网页开着那个会话的由它弹，`tag` 是 `<会话>:life`。
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -40,8 +38,6 @@ pub enum Why {
     ScheduleFailed,
     /// 唤醒表坏了，换了一份空的。
     SchedulesReset,
-    /// 她自己结束了一段人生（核心 LF-14 的 `life.ended`，`by` 是 `self`）：正文「美羽 的人生结束了」，名字在 [`Note::title`]。
-    LifeEnded,
 }
 
 impl Why {
@@ -54,7 +50,6 @@ impl Why {
             Why::ScheduleRan => key::NOTIFY_SCHEDULE_RAN,
             Why::ScheduleFailed => key::NOTIFY_SCHEDULE_FAILED,
             Why::SchedulesReset => key::NOTIFY_SCHEDULES_RESET,
-            Why::LifeEnded => key::NOTIFY_LIFE_ENDED,
         }
     }
 }
@@ -103,12 +98,8 @@ impl Note {
             .unwrap_or(PROGRAM)
     }
 
-    /// 通知的正文：会话的标题接为什么（`why` 是那一句的字），没有标题的只写为什么。人生结束了的那一句里带名字：
-    /// `{name}` 换成 [`Note::title`]（人格的名字）。
+    /// 通知的正文：会话的标题接为什么（`why` 是那一句的字），没有标题的只写为什么。
     pub fn body(&self, why: &str) -> String {
-        if self.why == Why::LifeEnded {
-            return why.replace("{name}", &self.title);
-        }
         if self.title.is_empty() {
             why.to_owned()
         } else {
@@ -348,28 +339,6 @@ impl Sessions {
                     face: None,
                 })
             }
-            // 一段人生结束了（核心 LF-14）：只弹她自己结束的（`by` 是 `self`），人结束的不弹；有网页开着那个会话的由它弹。
-            // 遗言（`last_words`）不写（2026-11-17 项目主人定）。
-            "life.ended" if params["by"] == "self" => {
-                let id = params["session"].as_str()?;
-                if self
-                    .known
-                    .get(id)
-                    .is_some_and(|seen| seen.quiet || seen.viewed)
-                {
-                    return None;
-                }
-                let persona = params["persona"].as_str().map(str::to_owned);
-                let name = params["name"].as_str().or(persona.as_deref());
-                Some(Note {
-                    session: Some(id.to_owned()),
-                    why: Why::LifeEnded,
-                    title: name.unwrap_or(PROGRAM).to_owned(),
-                    tag: format!("{id}:life"),
-                    persona,
-                    face: None,
-                })
-            }
             "schedules.reset" => Some(Note {
                 session: None,
                 why: Why::SchedulesReset,
@@ -390,7 +359,6 @@ fn tag_of(why: Why) -> &'static str {
         Why::Ask => "ask",
         Why::Approve => "approve",
         Why::SchedulesReset => "schedules.reset",
-        Why::LifeEnded => "life",
     }
 }
 
