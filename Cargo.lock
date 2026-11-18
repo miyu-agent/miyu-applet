@@ -1731,6 +1731,7 @@ dependencies = [
  "tray-icon",
  "windows",
  "winreg",
+ "zbus",
 ]
 
 [[package]]
