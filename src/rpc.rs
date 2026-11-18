@@ -11,10 +11,13 @@ use std::hash::{BuildHasher, RandomState};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 
 /// 问出去多久没回算「问不出话」（状态行写「没有响应」）：核心平常几毫秒就回，忙着写盘、整理的时候也在一两秒里。
 pub const SLOW: Duration = Duration::from_secs(10);
+
+/// 一行最多攒多少字节：协议一行最长 1 MiB（核心 `protocol.md`「一行一条」），留足余量；过了的当断了，不跟着攒内存（审计 #100）。
+const LINE_LIMIT: usize = 16 * 1024 * 1024;
 
 /// 一问没问成。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -173,16 +176,26 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Rpc<R, W> {
         self.write.flush().await.map_err(closed)
     }
 
-    /// 读一行；读到头就是断了。丢下了也不丢字：`read_until` 读到的都先放进 `partial`。
+    /// 读一行；读到头就是断了。丢下了也不丢字：读到的都先放进 `partial`。一行过了 [`LINE_LIMIT`] 还没完的当断了。
     async fn line(&mut self) -> Result<String, Failure> {
-        match self.lines.read_until(b'\n', &mut self.partial).await {
-            Ok(_) if self.partial.ends_with(b"\n") => {
-                let line = String::from_utf8_lossy(&self.partial).into_owned();
+        loop {
+            let room = LINE_LIMIT.saturating_sub(self.partial.len());
+            if room == 0 {
                 self.partial.clear();
-                Ok(line)
+                return Err(Failure::Closed("line too long".into()));
             }
-            Ok(_) => Err(Failure::Closed("disconnected".into())),
-            Err(error) => Err(Failure::Closed(error.to_string())),
+            // 一次最多读到还放得下的那么多（`take` 不攒，读到的照旧先进 `partial`）。
+            let mut limited = (&mut self.lines).take(room as u64);
+            match limited.read_until(b'\n', &mut self.partial).await {
+                Ok(_) if self.partial.ends_with(b"\n") => {
+                    let line = String::from_utf8_lossy(&self.partial).into_owned();
+                    self.partial.clear();
+                    return Ok(line);
+                }
+                Ok(0) => return Err(Failure::Closed("disconnected".into())),
+                Ok(_) => {}
+                Err(error) => return Err(Failure::Closed(error.to_string())),
+            }
         }
     }
 }
