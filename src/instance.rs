@@ -57,6 +57,7 @@ fn request(dir: &Path, key: &str) -> PathBuf {
 }
 
 /// 第二个起来的：叫第一个打开网页界面，`session` 有的打开那个会话。每次写的不一样（带时间），文件本来就有的也照样算改了。
+/// 先写旁边的临时文件（名字带自己的进程号，几个同时起来的不撞）再改名盖过去：盯着的读不到写了一半的（审计 #098）。
 ///
 /// # Errors
 /// 写不进去。
@@ -68,7 +69,13 @@ pub fn ask(dir: &Path, key: &str, session: Option<&str>) -> io::Result<()> {
         Some(id) => format!("session {id} {}\n", now.as_nanos()),
         None => format!("open {}\n", now.as_nanos()),
     };
-    std::fs::write(request(dir, key), line)
+    let temporary = dir.join(format!("{key}.open.{}.tmp", std::process::id()));
+    std::fs::write(&temporary, line)?;
+    std::fs::rename(&temporary, request(dir, key)).inspect_err(|_| {
+        if let Err(error) = std::fs::remove_file(&temporary) {
+            log::line(&format!("leftover {}: {error}", temporary.display()));
+        }
+    })
 }
 
 /// 读「请打开」那一行：`session <编号> …` 的交回那个会话，别的（`open …`、读不了的）是打开网页界面。
@@ -83,6 +90,7 @@ fn wanted_session(line: &str) -> Option<String> {
 }
 
 /// 第一个：盯着「请打开」的文件，有人写了就叫 `asked`（带上要打开的会话，没有的是打开网页界面）。交回的盯着的东西要一直拿着。
+/// 写一次文件系统会报好几下：同一行只交一回，读不到的、空的不交（审计 #098）。
 ///
 /// # Errors
 /// 盯不了。
@@ -92,11 +100,20 @@ pub fn listen(
     asked: impl Fn(Option<String>) + Send + 'static,
 ) -> notify::Result<RecommendedWatcher> {
     let wanted = request(dir, key);
+    let mut last = String::new();
     let mut watcher =
         notify::recommended_watcher(move |event: notify::Result<notify::Event>| match event {
             Ok(event) if written(&event.kind) && event.paths.contains(&wanted) => {
-                let line = std::fs::read_to_string(&wanted).unwrap_or_default();
-                asked(wanted_session(&line));
+                match std::fs::read_to_string(&wanted) {
+                    Ok(line) if !line.is_empty() && line != last => {
+                        asked(wanted_session(&line));
+                        last = line;
+                    }
+                    Ok(_) => {}
+                    Err(error) => {
+                        log::now_and_then("instance read", &format!("reading the request: {error}"))
+                    }
+                }
             }
             Ok(_) => {}
             Err(error) => {
@@ -115,7 +132,7 @@ fn written(kind: &EventKind) -> bool {
     )
 }
 
-/// 写一次文件系统会报好几下（新建、改内容、关闭），macOS 上点程序坞的图标也可能连着来：一秒里只算一次。
+/// macOS 上点程序坞的图标可能连着来：一秒里只算一次。带会话的（点了通知）不压，第二个起来的交来的已经一回一交（[`listen`]）。
 #[derive(Debug, Default)]
 pub struct Once {
     last: Option<Instant>,
@@ -125,6 +142,11 @@ pub struct Once {
 const ONCE_IN: Duration = Duration::from_secs(1);
 
 impl Once {
+    /// 要打开 `session`（`None` 是网页界面）的这一下算不算：带会话的都算。
+    pub fn pass(&mut self, now: Instant, session: Option<&str>) -> bool {
+        session.is_some() || self.allow(now)
+    }
+
     /// 这一下算不算。
     pub fn allow(&mut self, now: Instant) -> bool {
         if self

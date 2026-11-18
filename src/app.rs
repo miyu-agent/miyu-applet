@@ -131,7 +131,7 @@ impl App {
                 self.redraw();
             }
             Event::Open(session) => {
-                if self.asked.allow(Instant::now()) {
+                if self.asked.pass(Instant::now(), session.as_deref()) {
                     actions::open_web(&self.ctx, session.map_or(Page::Home, Page::Session));
                 }
             }
