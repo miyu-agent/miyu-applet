@@ -183,3 +183,30 @@ fn lines_are_replies_pushes_or_nothing() {
     assert_eq!(classify(r#"{"id":null}"#), Line::Other);
     assert_eq!(classify("not json"), Line::Other);
 }
+
+/// 审计 #100：一直不换行的一行不跟着攒内存，读过上限就当断了（原来一直读、一直攒）。
+#[test]
+fn a_line_that_never_ends_is_cut_off() {
+    runtime().block_on(async {
+        let (mut rpc, _core_read, mut core_write) = pair();
+        let core = async {
+            let chunk = vec![b'x'; 64 * 1024];
+            for _ in 0..(17 * 16) {
+                core_write.write_all(&chunk).await.unwrap();
+            }
+            // 不换行、不断开：还连着。
+            std::future::pending::<()>().await;
+        };
+        let ours = async {
+            let got = tokio::time::timeout(Duration::from_secs(60), rpc.push()).await;
+            assert!(
+                matches!(got, Ok(Err(Failure::Closed(_)))),
+                "读过上限要当断了：{got:?}"
+            );
+        };
+        tokio::select! {
+            () = core => {}
+            () = ours => {}
+        }
+    });
+}
