@@ -68,7 +68,7 @@ fn session_id(text: &str) -> bool {
             .all(|part| part.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
-/// 在当前用户的注册表里登记 `miyu-applet` 协议，指到 `exe`、带上数据根 `home`：`"<exe>" --home "<数据根>" --open "%1"`。
+/// 在当前用户的注册表里登记 `miyu-applet` 协议，指到 `exe`、带上数据根 `home`（[`open_command`]）。
 ///
 /// # Errors
 ///
@@ -84,14 +84,44 @@ pub fn register(exe: &std::path::Path, home: &std::path::Path) -> std::io::Resul
     key.set_value("", &"URL:Miyu")?;
     key.set_value("URL Protocol", &"")?;
     let (command, _) = key.create_subkey(r"shell\open\command")?;
-    command.set_value(
-        "",
-        &format!(
-            "\"{}\" {HOME_ARG} \"{}\" {ARG} \"%1\"",
-            exe.display(),
-            home.display()
-        ),
+    command.set_value("", &open_command(exe, home))
+}
+
+/// 登记的那一行命令：`"<exe>" --home "<数据根>" --open "%1"`，数据根照 [`quoted`] 加引号。
+#[cfg_attr(not(windows), allow(dead_code, reason = "只有 Windows 用"))]
+pub fn open_command(exe: &std::path::Path, home: &std::path::Path) -> String {
+    format!(
+        "\"{}\" {HOME_ARG} {} {ARG} \"%1\"",
+        exe.display(),
+        quoted(&home.to_string_lossy())
     )
+}
+
+/// Windows 命令行上的一个参数，照系统拆参数的规矩（`CommandLineToArgvW`）加引号：紧挨着引号的反斜杠要成双，不然 `D:\miyu\` 收尾的
+/// `\"` 被读成字面的引号，后面的参数都并进它里面（审计 #099）。程序那一格不照这个拆，不用它。
+#[cfg_attr(not(windows), allow(dead_code, reason = "只有 Windows 用"))]
+pub fn quoted(arg: &str) -> String {
+    let mut out = String::with_capacity(arg.len() + 2);
+    out.push('"');
+    let mut slashes = 0;
+    for c in arg.chars() {
+        match c {
+            '\\' => slashes += 1,
+            '"' => {
+                out.extend(std::iter::repeat_n('\\', slashes * 2 + 1));
+                out.push('"');
+                slashes = 0;
+            }
+            other => {
+                out.extend(std::iter::repeat_n('\\', slashes));
+                out.push(other);
+                slashes = 0;
+            }
+        }
+    }
+    out.extend(std::iter::repeat_n('\\', slashes * 2));
+    out.push('"');
+    out
 }
 
 #[cfg(test)]

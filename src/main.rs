@@ -7,6 +7,8 @@ mod about;
 mod actions;
 mod alerts;
 mod app;
+#[cfg(test)]
+mod argv;
 mod autostart;
 mod extras;
 mod folder;
