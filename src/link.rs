@@ -14,6 +14,8 @@
 //! 断了就作废；断了重连的照旧再认领一次（每连一次从头来）。认领成了再订会话表和提醒（`notices`），见 [`notices`]；老核心不认的
 //! 不发：这时网页还在照原来的弹，托盘再弹就重了。
 //!
+//! 断了马上再连一次；连上了、握手没回就断了的（对面一连就关）报「已停止」，再连一次比一次等得久（[`Backoff`]，审计 #097）。
+//!
 //! 「没有响应」：问出去的（握手、订阅、读配置）过了 [`rpc::SLOW`] 还没回报 [`Report::Slow`]，接着等，回了再报 [`Report::Up`]。连着、
 //! 托盘不问什么的时候不知道核心卡没卡住：不为这个定时去问。「出错了」的一种：握手被拒（本机令牌不对、协议版本谈不拢），报
 //! [`Report::Refused`] 带核心的原话。
@@ -37,6 +39,10 @@ use crate::rpc::{self, Failure, Rpc};
 pub const KIND: &str = "miyu-applet";
 /// 文件一变不马上连：核心起来那几步（换令牌、听套接字、写位置）一连串，等它们落定。
 const SETTLE: Duration = Duration::from_millis(150);
+/// 握手前就断了的，再连最多等这么久（[`Backoff`]）。
+const LONGEST: Duration = Duration::from_secs(30);
+/// 握过手、连着这么久再断的算好好用过：再连从头算（[`Backoff`]）。
+const STEADY: Duration = Duration::from_secs(30);
 
 /// 那条连接报来的。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,8 +92,10 @@ pub fn spawn(root: DataRoot, report: impl Fn(Report) + Send + 'static) -> Waker 
 
 /// 一次连接怎么完的。
 enum Ended {
-    /// 连上过，后来断了：马上再连一次。
-    Closed(String),
+    /// 握过手，后来断了：带握手以后连了多久。马上再连一次（接连断的照 [`Backoff`] 等）。
+    Closed(String, Duration),
+    /// 连上了，握手没回就断了（对面一连就关）：算连不上，照 [`Backoff`] 等着再连。
+    HungUp(String),
     /// 连不上（核心没在跑）。
     Absent(String),
     /// 握手被拒。
@@ -119,15 +127,29 @@ fn follow(
     };
     runtime.block_on(async {
         let mut was = None;
+        let mut backoff = Backoff::default();
         loop {
             if let Some(watch) = watch.as_mut() {
                 watch.rearm();
             }
             match session(root, report, &mut was).await {
-                Ended::Closed(why) => {
+                Ended::Closed(why, lasted) => {
                     log::line(&format!("core link closed: {why}"));
                     // 断了马上再连一次：核心崩了、被叫停的连不上，报「已停止」；只是这条连接断了的接着连上。
-                    tokio::time::sleep(SETTLE).await;
+                    tokio::time::sleep(backoff.after(lasted)).await;
+                    drain(&mut receive);
+                    continue;
+                }
+                Ended::HungUp(why) => {
+                    said(&mut was, false, &format!("hung up before hello: {why}"));
+                    report(Report::Down);
+                    // 等着再连；`run/` 变了、托盘自己起停了核心的不等。
+                    let wait = backoff.after(Duration::ZERO);
+                    match tokio::time::timeout(wait, receive.recv()).await {
+                        Ok(None) => return,
+                        Ok(Some(())) => tokio::time::sleep(SETTLE).await,
+                        Err(_) => {}
+                    }
                     drain(&mut receive);
                     continue;
                 }
@@ -161,6 +183,30 @@ fn drain(receive: &mut UnboundedReceiver<()>) {
     while receive.try_recv().is_ok() {}
 }
 
+/// 接连断了再连等多久：从 [`SETTLE`] 起一次翻一倍，到 [`LONGEST`] 不再长；握过手、连着过了 [`STEADY`] 再断的从头算。
+#[derive(Debug)]
+struct Backoff {
+    next: Duration,
+}
+
+impl Default for Backoff {
+    fn default() -> Self {
+        Self { next: SETTLE }
+    }
+}
+
+impl Backoff {
+    /// 刚断的这一条握手以后连了 `lasted`（握手前就断的是零）：交回等多久再连。
+    fn after(&mut self, lasted: Duration) -> Duration {
+        if lasted >= STEADY {
+            self.next = SETTLE;
+        }
+        let wait = self.next;
+        self.next = (self.next * 2).min(LONGEST);
+        wait
+    }
+}
+
 /// 连一次：握手，订流，照推送跟着，直到断。
 async fn session(root: &DataRoot, report: &dyn Fn(Report), was: &mut Option<bool>) -> Ended {
     let (connection, token) = match miyu_client::connect::connect(root).await {
@@ -174,20 +220,21 @@ async fn session(root: &DataRoot, report: &dyn Fn(Report), was: &mut Option<bool
     match rpc.call("hello", hello, &mut slow).await {
         Ok(_) => {}
         Err(Failure::Refused { message, .. }) => return Ended::Refused(message),
-        Err(Failure::Closed(why)) => return Ended::Closed(why),
+        Err(Failure::Closed(why)) => return Ended::HungUp(why),
     }
     said(was, true, "connected");
     report(Report::Up);
+    let up = Instant::now();
     let claimed = match soft(
         "notices.claim",
         rpc.call("notices.claim", json!({}), &mut slow).await,
     ) {
         Ok(claimed) => claimed.is_some(),
-        Err(failure) => return Ended::Closed(failure.said().to_string()),
+        Err(failure) => return Ended::Closed(failure.said().to_string(), up.elapsed()),
     };
     match streams(&mut rpc, report, &mut slow, claimed).await {
         Ok(never) => match never {},
-        Err(failure) => Ended::Closed(failure.said().to_string()),
+        Err(failure) => Ended::Closed(failure.said().to_string(), up.elapsed()),
     }
 }
 
