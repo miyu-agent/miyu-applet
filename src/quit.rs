@@ -2,9 +2,9 @@
 //! 它最多等 60 秒；退出码 1 的标准错误上有一句「miyu: …」，照它的语言，带回去给人看。
 //! 「退出 Miyu」没停成的照样退，记一行日志。
 //!
-//! 「停止」「退出 Miyu」先 `miyu web --stop` 停网页软件（网页 W-1091）：不停它的话，开着的页面一重连，网页软件照
-//! `connect_or_start` 一秒内又把核心拉起来（2026-11-03 在 Windows 虚拟机上测出来的）。停没停成都接着停核心，只记日志：旧网页
-//! 不认这个参数（退出码 2），核心停了以后它照自己的规矩空闲了退。「重新启动」不停它，页面接着连新起来的核心。
+//! 「停止」「退出 Miyu」先 `miyu web stop` 停网页软件（网页 W-1091 起是 `--stop`，W-1214 改子命令）：不停它的话，开着的页面一
+//! 重连，网页软件照 `connect_or_start` 一秒内又把核心拉起来（2026-11-03 在 Windows 虚拟机上测出来的）。停没停成都接着停核心，只记
+//! 日志（网页 W-1214 起出厂不空闲退出，没停成的要人自己 `miyu web stop`）。「重新启动」不停它，页面接着连新起来的核心。
 
 use std::path::Path;
 
@@ -12,13 +12,10 @@ use crate::log;
 use crate::program::{self, RunError};
 use crate::text::{Text, key};
 
-/// 叫网页软件停（`miyu web --stop`）：只记日志，不交结果。
+/// 叫网页软件停（`miyu web stop`）：只记日志，不交结果。
 pub fn stop_web(miyu: &Path) {
     match program::run(miyu, program::STOP_WEB, program::STOP_WEB_LIMIT) {
         Ok(ran) if ran.code == Some(0) => log::line("web stopped"),
-        Ok(ran) if ran.code == Some(program::USAGE) => {
-            log::line("the web app does not know --stop, leaving it to idle out");
-        }
         Ok(ran) => log::line(&format!(
             "web stop exited {:?}: {}",
             ran.code,
