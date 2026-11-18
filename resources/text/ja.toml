@@ -35,5 +35,4 @@
 "notify.schedule_ran" = "定期タスクが完了しました"
 "notify.schedule_failed" = "定期タスクが完了しませんでした"
 "notify.schedules_reset" = "定期タスクの記録が壊れたため新しくしました。以前の定期タスクはなくなりました"
-"notify.life_ended" = "{name} の人生が終わりました"
 "notify.open" = "開く"
