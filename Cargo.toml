@@ -35,6 +35,10 @@ miyu-client = { git = "https://github.com/miyu-agent/miyu", rev = "ac8879df17546
 [dev-dependencies]
 tokio = { version = "1.54.1", features = ["macros", "test-util"] }
 
+# 测试里起一个假的通知服务（审计 #100：看等人点的线程不越攒越多）。同 notify-rust、ksni 用的那一版，不多编一套。MIT。
+[target.'cfg(all(unix, not(target_os = "macos")))'.dev-dependencies]
+zbus = { version = "=5.19.0", default-features = false, features = ["async-io"] }
+
 # 「开机时启动」写当前用户的 Run 注册表项。
 [target.'cfg(windows)'.dependencies]
 winreg = "0.56.0"

@@ -1,6 +1,6 @@
 //! 弹系统通知（图纸 `app.md` 第 5 条，施工 AP-4），照 `notify-rust`：Linux 是会话 D-Bus 上的 `org.freedesktop.Notifications`，
 //! macOS 是 NSUserNotificationCenter，Windows 是 WinRT 的 toast。一条一个后台线程：发出去，等人点了或者关了；点了（通知本身、
-//! 「打开」按钮）照 [`Toaster::new`] 给的回调打开那个会话。
+//! 「打开」按钮）照 [`Toaster::new`] 给的回调打开那个会话。等着的有上限、被换掉的不再等（`waits`，审计 #100）。
 //!
 //! 标题、正文、头像照 [`Note`]（AP-20，2026-11-10 项目主人：系统通知照会话的人格来）：标题是人格的名字，无人格的写「Miyu」；人格有头像的
 //! 把图写进托盘自己目录的 `avatars/<版本>.<扩展名>`，交给通知当图；没头像的、无人格的不带图（原来带托盘的 logo，不再带）。
@@ -56,6 +56,8 @@ struct Shared {
     on_click: OnClick,
     #[cfg(not(windows))]
     shown: Mutex<Shown>,
+    #[cfg(not(windows))]
+    waits: Mutex<waits::Waits>,
 }
 
 impl Toaster {
@@ -72,6 +74,8 @@ impl Toaster {
             on_click: Box::new(on_click),
             #[cfg(not(windows))]
             shown: Mutex::new(Shown::default()),
+            #[cfg(not(windows))]
+            waits: Mutex::new(waits::Waits::default()),
         }))
     }
 
@@ -131,7 +135,8 @@ fn show_now(shared: &Shared, note: &Note) {
     };
     let id = platform::id_of(&handle);
     let mine = id.map(|id| shared.shown().sent(&note.tag, id));
-    let waited = handle.wait_for_response(|response: &NotificationResponse| {
+    let (ticket, stop) = shared.waits().start(&note.tag);
+    let waited = platform::wait(handle, stop, |response: &NotificationResponse| {
         let clicked = match response {
             NotificationResponse::Default => true,
             NotificationResponse::Action(action) => action == "default",
@@ -148,8 +153,14 @@ fn show_now(shared: &Shared, note: &Note) {
             (shared.on_click)(note.session.clone());
         }
     });
-    if let Err(error) = waited {
-        log::line(&format!("notification {} not followed: {error}", note.tag));
+    shared.waits().done(ticket);
+    match waited {
+        Ok(true) => {}
+        Ok(false) => log::now_and_then(
+            "notification stopped",
+            &format!("notification {} no longer followed", note.tag),
+        ),
+        Err(error) => log::line(&format!("notification {} not followed: {error}", note.tag)),
     }
 }
 
@@ -183,6 +194,10 @@ fn avatar_file(own: Option<&Path>, avatar: &Avatar) -> Option<PathBuf> {
 impl Shared {
     fn shown(&self) -> std::sync::MutexGuard<'_, Shown> {
         self.shown.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn waits(&self) -> std::sync::MutexGuard<'_, waits::Waits> {
+        self.waits.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
@@ -228,7 +243,10 @@ impl Shown {
 mod platform {
     use std::path::Path;
 
-    use notify_rust::{Hint, Notification, NotificationHandle};
+    use std::future::Future;
+    use std::task::Poll;
+
+    use notify_rust::{Hint, Notification, NotificationHandle, NotificationResponse};
 
     /// 起来时不用做什么（原来把 logo 写进托盘目录当通知的图标；AP-20 起没头像的不带图）。
     pub fn prepare() {}
@@ -246,6 +264,30 @@ mod platform {
 
     pub fn id_of(handle: &NotificationHandle) -> Option<u32> {
         Some(handle.id())
+    }
+
+    /// 等人点、关，或者被叫停（`stop`）：照库的异步等法，叫停了就放下这条连接、线程走掉。交回等到了没有（`false` 是被叫停了）。
+    pub fn wait(
+        handle: NotificationHandle,
+        stop: tokio::sync::oneshot::Receiver<()>,
+        on: impl FnOnce(&NotificationResponse),
+    ) -> Result<bool, String> {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .map_err(|error| error.to_string())?;
+        Ok(runtime.block_on(async {
+            let waiting = handle.wait_for_action_async(on);
+            let mut waiting = std::pin::pin!(waiting);
+            let mut stop = std::pin::pin!(stop);
+            std::future::poll_fn(|cx| {
+                if waiting.as_mut().poll(cx).is_ready() {
+                    return Poll::Ready(true);
+                }
+                // 叫停的那一头没了（`Waits` 忘了这一条）也算叫停。
+                stop.as_mut().poll(cx).map(|_| false)
+            })
+            .await
+        }))
     }
 }
 
@@ -266,7 +308,7 @@ mod file_url;
 mod platform {
     use std::path::Path;
 
-    use notify_rust::{Notification, NotificationHandle};
+    use notify_rust::{Notification, NotificationHandle, NotificationResponse};
 
     use crate::log;
 
@@ -286,7 +328,22 @@ mod platform {
     pub fn id_of(_: &NotificationHandle) -> Option<u32> {
         None
     }
+
+    /// 等人点、关：库在这里是同步等的，停不下来，`stop` 用不上（审计 #100 留下的：要换 UNUserNotificationCenter 的后端）。
+    pub fn wait(
+        handle: NotificationHandle,
+        _stop: tokio::sync::oneshot::Receiver<()>,
+        on: impl FnOnce(&NotificationResponse),
+    ) -> Result<bool, String> {
+        handle
+            .wait_for_response(on)
+            .map(|()| true)
+            .map_err(|error| error.to_string())
+    }
 }
+
+#[cfg(not(windows))]
+mod waits;
 
 #[cfg(all(test, not(windows)))]
 mod tests;
