@@ -258,6 +258,9 @@ mod platform {
 #[cfg(windows)]
 mod winrt;
 
+#[cfg_attr(not(windows), allow(dead_code, reason = "只有 Windows 用"))]
+mod file_url;
+
 /// macOS：起来时认一次 `Miyu.app`。
 #[cfg(target_os = "macos")]
 mod platform {

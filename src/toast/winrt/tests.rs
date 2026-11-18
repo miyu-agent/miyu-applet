@@ -51,7 +51,7 @@ fn the_document_loads() {
 #[test]
 fn an_avatar_goes_into_the_app_logo_override() {
     let path = std::path::Path::new(r"C:\Users\me\AppData\Local\miyu-applet\avatars\0123abcd.png");
-    let url = file_url(path);
+    let url = super::super::file_url::file_url(path);
     assert_eq!(
         url,
         "file:///C:/Users/me/AppData/Local/miyu-applet/avatars/0123abcd.png"
