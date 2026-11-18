@@ -59,3 +59,33 @@ fn the_link_comes_from_the_command_line() {
     assert_eq!(from_args([ARG.to_owned()]), None, "后面没有网址");
     assert_eq!(from_args(["x".to_owned()]), None);
 }
+
+/// 审计 #099：数据根末尾带反斜杠的（`D:\miyu\`、盘的根 `D:\`），系统拆参数时 `\"` 是字面的引号，原来吞掉了后面的 `--open "%1"`。
+#[test]
+fn a_trailing_backslash_in_the_data_root_keeps_the_link_argument() {
+    let exe = std::path::Path::new(r"C:\Program Files\Miyu\miyu-applet.exe");
+    for home in [r"D:\miyu\", r"D:\", r"D:\Miyu data"] {
+        assert_eq!(
+            crate::argv::split(&open_command(exe, std::path::Path::new(home))),
+            [
+                r"C:\Program Files\Miyu\miyu-applet.exe",
+                HOME_ARG,
+                home,
+                ARG,
+                "%1"
+            ],
+            "{home}"
+        );
+    }
+}
+
+#[test]
+fn quoted_arguments_come_back_as_they_were() {
+    for arg in [r"a\b", r"a\\", "a\"b", r"a\", "", "a b", r"\\server\share\"] {
+        assert_eq!(
+            crate::argv::split(&format!("x {}", quoted(arg))),
+            ["x", arg],
+            "{arg}"
+        );
+    }
+}

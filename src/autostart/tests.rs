@@ -129,3 +129,21 @@ fn removing_what_is_not_there_is_fine_and_writing_makes_the_folder() {
     assert!(!file.exists());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// 审计 #099：数据根末尾带反斜杠（`D:\miyu\`、盘的根 `D:\`）的，系统拆参数时 `\"` 是字面的引号，原来吞掉了后面的 `--autostart`。
+#[test]
+fn a_trailing_backslash_in_the_data_root_keeps_the_arguments_apart() {
+    let exe = Path::new(r"C:\Program Files\Miyu\miyu-applet.exe");
+    for root in [r"D:\miyu\", r"D:\", r"D:\a b\\"] {
+        assert_eq!(
+            crate::argv::split(&run_value(exe, Some(Path::new(root)))),
+            [
+                r"C:\Program Files\Miyu\miyu-applet.exe",
+                HOME_ARG,
+                root,
+                ARG
+            ],
+            "{root}"
+        );
+    }
+}

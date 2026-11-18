@@ -13,7 +13,7 @@
 //! `protocol`）。原来 Linux 写 `env MIYU_HOME=…`、macOS 写 `EnvironmentVariables`，Windows 的 `Run` 项带不了环境变量只能照默认；
 //! 写参数三个平台一个样子，Windows 也带得上，不用套一层 `cmd /c set` 闪控制台。没明说的照默认，什么都不加。
 
-use crate::protocol::HOME_ARG;
+use crate::protocol::{HOME_ARG, quoted};
 use std::ffi::OsString;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -145,11 +145,11 @@ fn xml_escape(text: &str) -> String {
 }
 
 /// Windows `Run` 项里的那一行：程序加引号（`Program Files` 有空格），有明说的数据根的带 `--home "<数据根>"`（同网址协议登记的写法，
-/// `protocol::register`），再带参数。
+/// `protocol::open_command`；末尾的反斜杠照 `protocol::quoted` 成双，审计 #099），再带参数。
 #[cfg_attr(not(windows), allow(dead_code, reason = "只有 Windows 用"))]
 pub fn run_value(exe: &Path, root: Option<&Path>) -> String {
     let home = root.map_or_else(String::new, |root| {
-        format!(" {HOME_ARG} \"{}\"", root.display())
+        format!(" {HOME_ARG} {}", quoted(&root.to_string_lossy()))
     });
     format!("\"{}\"{home} {ARG}", exe.display())
 }
