@@ -7,16 +7,28 @@
 #   dist/pins.txt                           钉的两个提交号，写进发版说明
 # 网页包的文件夹照网页仓库 tools/pack-web.py 装好的样子（网页的会话 2026-10-30 定）：清单没写 version 的补上（照网页的工作区版本）；
 # 网页 W-1095（0.1.0）起清单自己写 version 和 targets 三种，照原样用，version 要和工作区版本一样，
-# web.json、matugen/ 原样，许可证（仓库根的 LICENSE、webui/ 的第三方许可证清单）放包的根上，pages/ 是 web-demo 里给浏览器的七样，
-# 程序放 bin/。等待页 loading.html 是给原来外壳的窗口用的，托盘不用，不带。
+# web.json、matugen/ 原样，许可证（仓库根的 LICENSE、webui/ 的第三方许可证清单）放包的根上，pages/ 是 web-demo 里给浏览器的那几样
+# （照网页的 tools/pack-web.py 列的 PAGES，审计 #082：原来这里另写了一份，网页加了 manifest.webmanifest 没跟上），程序放 bin/。
+# 等待页 loading.html 是给原来外壳的窗口用的，托盘不用，不带（网页的 PAGES 里也没有它）。
 #   python3 packaging/stage.py --core <核心检出> --web <网页检出> --triple <rustc 的 host> --out dist
-import argparse, hashlib, io, pathlib, re, shutil, sys, tomllib, urllib.request, zipfile
+import argparse, ast, hashlib, io, pathlib, re, shutil, sys, tomllib, urllib.request, zipfile
 
 # 核心带的三个程序（核心的主会话 2026-10-30 定）：主程序、沙盒助手、抽字的小程序。
 CORE_PROGRAMS = ['miyu', 'miyu-sandbox', 'miyu-extract']
 # 网页包的编号，也是网页仓库里那个文件夹的名字（2026-11-12 起包编号不带 miyu-）
 WEB_PACKAGE = 'webui'
-PAGES = ['index.html', 'distro.json', 'src', 'styles', 'packages', 'resources', 'vendor']
+
+
+def web_pages(web):
+    """网页包带哪些页面文件：照网页仓库 tools/pack-web.py 里的 PAGES（只读那一行的字面量，不跑它）。"""
+    script = web / 'tools' / 'pack-web.py'
+    tree = ast.parse(script.read_text(encoding='utf-8'), str(script))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PAGES' for t in node.targets):
+            pages = ast.literal_eval(node.value)
+            if isinstance(pages, list) and pages and all(isinstance(p, str) for p in pages):
+                return pages
+    sys.exit(f'{script} 里没有 PAGES = [...]：先找网页的会话')
 
 
 def workspace_version(root):
@@ -148,7 +160,7 @@ def main():
         if not src.is_file():
             sys.exit(f'网页少了 {src}：安装包要带它（施工 AP-5）')
         shutil.copy2(src, package / name)
-    for name in PAGES:
+    for name in web_pages(args.web):
         page = args.web / 'web-demo' / name
         if page.is_dir():
             shutil.copytree(page, package / 'pages' / name)

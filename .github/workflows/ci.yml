@@ -54,6 +54,10 @@ jobs:
       - name: 许可证
         if: runner.os == 'Linux'
         run: cargo xtask licenses
+      # 打包脚本拿替身的核心、网页检出整趟跑一遍（审计 #082）。
+      - name: 打包脚本的测试
+        if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s packaging/tests
       - name: 正式版（试验用，收下程序手测）
         run: cargo build --release --locked
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
