@@ -9,7 +9,7 @@
 //! | 局域网访问 | 连核心改 `web.listen`（见 `lan`）；要打开可是没设访问密码的，改成 `miyu web --settings access` |
 //! | 点了系统通知 | `miyu web --session <编号>`（网页 W-1085）；账号级的提醒 `miyu web`；退回同上 |
 //! | 在手机上打开… | `miyu web --settings access`（网页设置「访问」那一组，局域网地址和二维码在那里，网页 W-1086）；退回同上 |
-//! | 停止 | `miyu web --stop`（网页 W-1091），再 `miyu core stop` |
+//! | 停止 | `miyu web stop`（网页 W-1091、W-1214），再 `miyu core stop` |
 //! | 启动 | 照头的办法拉起核心：建好数据根的骨架，`connect_or_start` 拉起 `miyu core`（不开浏览器） |
 //! | 重新启动 | 先停核心再起（网页软件留着，页面接着连新的） |
 //! | 打开日志所在的文件夹 | 用系统的文件管理器打开数据根的 `var/log/` |

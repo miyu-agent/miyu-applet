@@ -15,8 +15,8 @@ pub const WEB: &[&str] = &["web"];
 pub const SETTINGS: &[&str] = &["web", "--settings"];
 /// 叫核心停（核心 CL-4）：软件包跟着停。
 pub const STOP: &[&str] = &["core", "stop"];
-/// 叫网页软件停（网页 W-1091）：不连核心；旧网页不认，见 [`USAGE`]。
-pub const STOP_WEB: &[&str] = &["web", "--stop"];
+/// 叫网页软件停（网页 W-1091，W-1214 起是子命令）：不连核心。
+pub const STOP_WEB: &[&str] = &["web", "stop"];
 /// 核心进程本身：头照 `miyu core` 把它拉起来（核心的 `connect_or_start`）。
 pub const CORE: &str = "core";
 /// 问主程序的版本。
@@ -25,7 +25,7 @@ pub const VERSION: &[&str] = &["--version"];
 pub const WEB_LIMIT: Duration = Duration::from_secs(90);
 /// 叫核心停最多等多久：`miyu core stop` 自己最多等 60 秒。
 pub const STOP_LIMIT: Duration = Duration::from_secs(70);
-/// 叫网页软件停最多等多久：`miyu web --stop` 自己等它放锁最多 10 秒。
+/// 叫网页软件停最多等多久：`miyu web stop` 自己等它放锁最多 10 秒。
 pub const STOP_WEB_LIMIT: Duration = Duration::from_secs(20);
 /// 问版本最多等多久。
 pub const VERSION_LIMIT: Duration = Duration::from_secs(10);
