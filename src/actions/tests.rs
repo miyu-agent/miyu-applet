@@ -23,8 +23,8 @@ fn success_says_nothing_and_failures_say_why() {
     let text = Text::of(Lang::Zh);
     assert_eq!(failure(&ran(0, "ignored"), &text), None);
     assert_eq!(
-        failure(&ran(1, "a\nmiyu: 核心起不来\n"), &text),
-        Some("a\nmiyu: 核心起不来".into())
+        failure(&ran(1, "a\nmiyu: 核心无法启动\n"), &text),
+        Some("a\nmiyu: 核心无法启动".into())
     );
     assert_eq!(
         failure(&Err(RunError::Timeout), &text),
