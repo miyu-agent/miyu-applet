@@ -48,6 +48,6 @@ fn the_message_lists_all_three_with_their_pins() {
     let message = describe(&text, "0.1.0", Some("0.0.0"), None, &pins);
     assert_eq!(
         message,
-        "托盘: 0.1.0\n核心: 0.0.0\n  miyu-agent/miyu@abc\n网页: 不知道"
+        "托盘: 0.1.0\n核心: 0.0.0\n  miyu-agent/miyu@abc\n网页: 未知"
     );
 }

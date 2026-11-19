@@ -28,7 +28,7 @@
 "about.app" = "托盘"
 "about.core" = "核心"
 "about.web" = "网页"
-"about.unknown" = "不知道"
+"about.unknown" = "未知"
 # 系统通知（图纸 app.md 第 5 条）：正文同网页 notify 包的那几句，两边一样；「打开」是通知上的按钮（有的系统点通知本身就是它）。
 "notify.done" = "回答完了"
 "notify.ask" = "等你回答"
