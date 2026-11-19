@@ -39,6 +39,9 @@ use crate::instance::Claim;
 use crate::text::Text;
 
 fn main() {
+    // 堆的两个参数（glibc 上限 arena、定大块门槛）和透明大页（Linux 上给这个进程关掉，核心 YC-12）：托盘常驻，还没起别的线程时
+    // 定，同终端、核心的做法。别的平台什么都不做。
+    miyu_client::heap::tune();
     let text = Arc::new(Text::system());
     let autostarted = std::env::args().skip(1).any(|arg| arg == autostart::ARG);
     // 点了通知拉起来的（`--open miyu-applet://open/?session=<编号>`，`protocol`）：要打开的那个会话
