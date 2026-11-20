@@ -1,8 +1,8 @@
-//! 私密路径门禁（照核心 `xtask/src/privacy.rs`，核心施工 SCRUB-1、SCRUB-2）：仓库是公开的，被 git 跟踪的文本里不许出现开发机上
+//! 私密路径门禁（照核心 `xtask/src/privacy.rs`，核心施工 SCRUB-1～SCRUB-4）：仓库是公开的，被 git 跟踪的文本里不许出现开发机上
 //! 真实用户的痕迹：`/home/<名字>`、macOS 的 `/Users/<名字>`、Windows 的 `C:\Users\<名字>`（`/`、`\\` 的写法和 WSL 的
 //! `/mnt/c` 也算）、`/tmp/claude-<数字>`、`-home-<名字>-Documents`（后者是按工作目录起的会话存档目录名）。
 //!
-//! 核心不扫 `docs/`；这个仓库的文档已经清过，所以连 `docs/` 一起扫。测试里要用家目录时，写 [`FICTIONAL`] 里的虚构名字。
+//! 和核心一样连 `docs/` 一起扫。测试里要用家目录时，写 [`FICTIONAL`] 里的虚构名字。
 //! 这里不写任何具体的人名、机器名、地址：规则只认形状，具体的名字清单属于本机，不进仓库。
 
 use std::path::Path;
@@ -29,6 +29,7 @@ const FICTIONAL: &[&str] = &[
     "user",
     "example",
     "test",
+    "runner",
     "runneradmin",
     "public",
     "default",
@@ -61,8 +62,10 @@ pub fn scan(label: &str, text: &str) -> Vec<String> {
                 "{label}:{at}：出现了开发机上会话的临时目录 `/tmp/claude-<数字>`，删掉或换成占位"
             ));
         }
+        // `-home-<名字>-Documents-…`：名字取到第一个 `-` 为止，后面的目录名长短不论。
         for name in names_after(line, "-home-") {
-            if name.ends_with("-Documents") && name.len() > "-Documents".len() {
+            let user = name.split('-').next().unwrap_or("");
+            if name[user.len()..].starts_with("-Documents") && !allowed(user) {
                 found.push(format!(
                     "{label}:{at}：出现了按工作目录起的会话存档目录名 `-home-…-Documents`，删掉或换成占位"
                 ));
@@ -80,7 +83,7 @@ fn names_after<'a>(line: &'a str, marker: &str) -> Vec<&'a str> {
 }
 
 /// 一行里每个用户目录的（写法，名字）：`/home/`、`/Users/` 和 Windows 的 `X:\Users\`，`\` 和 `\\` 都当 `/`。
-/// 前面紧挨着名字字符或 `.` 的是路径中间的一段（`pages/home/`、`foo/Users/`、`/api/users/42`），不算；
+/// 前面紧挨着名字字符、`.` 或省略号 `…` 的是路径中间的一段（`pages/home/`、`foo/Users/`、`/api/users/42`），不算；
 /// 盘符和 `/mnt/c` 这类 WSL 的挂载点除外。
 fn user_dirs(line: &str) -> Vec<(&'static str, String)> {
     // `/home/` 只认正斜杠：`/home\134x` 这类转义（挂载表里的空格写法）不是路径分隔。Windows 的写法才把反斜杠当 `/`。
@@ -96,7 +99,7 @@ fn user_dirs(line: &str) -> Vec<(&'static str, String)> {
                 || before
                     .rsplit_once("/mnt/")
                     .is_some_and(|(_, drive)| drive.len() == 1);
-            if mount || !before.ends_with(is_name) {
+            if mount || !before.ends_with(|c| is_name(c) || c == '…') {
                 found.push((shown, name_at(&text[i + m.len()..]).to_string()));
             }
         }
@@ -260,6 +263,34 @@ mod tests {
     fn a_backslash_escape_after_home_is_not_a_separator() {
         let text = ["\"/ho", "me\\\\134x\""].concat();
         assert_eq!(scan("a.rs", &text), Vec::<String>::new());
+    }
+
+    #[test]
+    fn an_elided_prefix_makes_it_a_path_middle() {
+        let text = ["cwd=…/ho", "me/home/onebot and …/ho", "me/owner"].concat();
+        assert_eq!(scan("a.md", &text), Vec::<String>::new());
+    }
+
+    #[test]
+    fn documents_are_scanned_too() {
+        let dir = std::env::temp_dir().join(format!("xtask-privacy-docs-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("docs")).expect("建得了目录");
+        std::fs::create_dir_all(dir.join("internal")).expect("建得了目录");
+        for name in ["docs/b.md", "internal/c.md"] {
+            std::fs::write(dir.join(name), home("zhangsan")).expect("写得进");
+        }
+        let problems = check(&dir);
+        std::fs::remove_dir_all(&dir).expect("删得掉");
+        assert_eq!(problems.len(), 2, "{problems:?}");
+    }
+
+    #[test]
+    fn a_full_session_archive_name_is_caught_by_its_user_segment() {
+        let full = ["-ho", "me-zhangsan-Documents-github-proj"].concat();
+        let fictional = ["-ho", "me-alice-Documents-github-proj"].concat();
+        assert_eq!(scan("a.md", &full).len(), 1);
+        assert!(scan("a.md", &fictional).is_empty());
+        assert!(scan("a.md", "-home-zhangsan-notes").is_empty());
     }
 
     #[test]
