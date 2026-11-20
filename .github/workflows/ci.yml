@@ -54,6 +54,10 @@ jobs:
       - name: 许可证
         if: runner.os == 'Linux'
         run: cargo xtask licenses
+      # 被 git 跟踪的文本里不许有带真实用户名的路径（xtask/src/privacy.rs，照核心的同名门禁）。
+      - name: 私密路径
+        if: runner.os == 'Linux'
+        run: cargo xtask privacy
       # 打包脚本拿替身的核心、网页检出整趟跑一遍（审计 #082）。
       - name: 打包脚本的测试
         if: runner.os == 'Linux'
