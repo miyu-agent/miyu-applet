@@ -8,8 +8,8 @@ macOS 的桌面端是一个 `.app`：程序在 `Miyu.app/Contents/MacOS/miyu`，
 
 ### 蓝图改哪几节
 
-- 核心仓库 `docs/blueprint/store/resources.md`「怎么走」第 1 条第 2、3 款：三处照先后，`Resources/` 里还有图标这些别人的东西，所以认的是下面那一层 `miyu/`；照摆法认，不问是不是 macOS。装法的表加 Windows、macOS 的桌面端两行；「出错」`NotFound` 那句写三处；「守着它的」那一行跟着改。
-- 核心仓库 `docs/designs/12-进程形态与分发.md` 第三节：装法的表加桌面端两行，「怎么找」加第三处。
+- 核心仓库 `internal/blueprint/store/resources.md`「怎么走」第 1 条第 2、3 款：三处照先后，`Resources/` 里还有图标这些别人的东西，所以认的是下面那一层 `miyu/`；照摆法认，不问是不是 macOS。装法的表加 Windows、macOS 的桌面端两行；「出错」`NotFound` 那句写三处；「守着它的」那一行跟着改。
+- 核心仓库 `internal/designs/12-进程形态与分发.md` 第三节：装法的表加桌面端两行，「怎么找」加第三处。
 
 ### 不做什么
 

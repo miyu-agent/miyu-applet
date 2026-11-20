@@ -11,7 +11,7 @@ use std::process::Command;
 
 use serde_json::Value;
 
-/// 发布的四个平台（核心仓库的 `docs/designs/12-进程形态与分发.md` R11）。托盘的安装包现在只出三种（没有 ARM 的 Linux），照四个
+/// 发布的四个平台（核心仓库的 `internal/designs/12-进程形态与分发.md` R11）。托盘的安装包现在只出三种（没有 ARM 的 Linux），照四个
 /// 查：多查一个不碍事，以后出 ARM 的包不用改这里。
 pub const PLATFORMS: [&str; 4] = [
     "x86_64-unknown-linux-gnu",

@@ -8,8 +8,8 @@
 
 ### 蓝图改哪几节
 
-- 核心仓库 `docs/blueprint/protocol.md` 方法表加 `core.stop`：没有参数，回应 `{}`；只给出示本机令牌连上的，闸照 `account.setup_code`：扩展、设备令牌、访问密码、交接票连上的回 `local_only`，远程的回 `local_machine_only`，一次性码连上的照旧先回 `setup_first`。
-- 核心仓库 `docs/blueprint/core.md`「停下」第 10 条（新）、第 7 条、运行日志的表、「在哪」「守着它的」：停的原因多一种 `request`（头叫停的），和信号一样先停下会话（跑到一半的回合记成重启了）、请扩展退出、等记忆在后台的读写，运行日志 `stopped reason=request`。回应先写出去，端点再叫一声（`Activity::stop_requested`）。
+- 核心仓库 `internal/blueprint/protocol.md` 方法表加 `core.stop`：没有参数，回应 `{}`；只给出示本机令牌连上的，闸照 `account.setup_code`：扩展、设备令牌、访问密码、交接票连上的回 `local_only`，远程的回 `local_machine_only`，一次性码连上的照旧先回 `setup_first`。
+- 核心仓库 `internal/blueprint/core.md`「停下」第 10 条（新）、第 7 条、运行日志的表、「在哪」「守着它的」：停的原因多一种 `request`（头叫停的），和信号一样先停下会话（跑到一半的回合记成重启了）、请扩展退出、等记忆在后台的读写，运行日志 `stopped reason=request`。回应先写出去，端点再叫一声（`Activity::stop_requested`）。
 - `docs/reference/` 的中英两份 `connection` 加 `core.stop` 的条目；`crates/miyu-endpoint/src/connection/rights.rs` 的权限表把它归到「只给人」；协议 1 的方法清单 `methods-v1.txt` 照 `cargo xtask methods` 重出。
 
 ### 不做什么
