@@ -33,5 +33,5 @@ DT-3 用原图直接缩的占位图标：原图是不透明的位图，托盘里
 ### 结果
 
 - `icons/source/build.sh` 出了全部图标，都是 RGBA；对照图看过 512、128、48、32、24、16 和深浅任务栏上的托盘。
-- 本机 Linux：托盘图标的文件（`/run/user/1000/tray-icon/` 下 tray-icon 写的那张）和 `icons/tray.png` 逐像素一样；clippy（Linux、Windows 目标）过。
+- 本机 Linux：托盘图标的文件（`$XDG_RUNTIME_DIR/tray-icon/` 下 tray-icon 写的那张）和 `icons/tray.png` 逐像素一样；clippy（Linux、Windows 目标）过。
 - 顺带复测了网页的端口回退（W-987，网页 e072dc8d）：空数据根、不写 `web.port`，这台机器 8300、8301、8302 都被占着，外壳 259 毫秒拿到 `http://127.0.0.1:8303/` 的网址，页面到欢迎屏；托盘「退出」核心照旧停（`stopped reason=request`）。DT-3「碰到的」第一条网页那边解决了。
