@@ -13,8 +13,15 @@
 #   python3 packaging/stage.py --core <核心检出> --web <网页检出> --triple <rustc 的 host> --out dist
 import argparse, ast, hashlib, io, pathlib, re, shutil, sys, tomllib, urllib.request, zipfile
 
-# 核心带的三个程序（核心的主会话 2026-10-30 定）：主程序、沙盒助手、抽字的小程序。
+# 核心带的程序（核心的主会话 2026-10-30 定）：主程序、沙盒助手、抽字的小程序，三个平台都带。
 CORE_PROGRAMS = ['miyu', 'miyu-sandbox', 'miyu-extract']
+# Unix 上另带看门的小程序（核心 LW-28）：核心被强行结束时，它起的命令、扩展靠它跟着走。Windows 上核心进作业对象，不带。
+UNIX_PROGRAMS = ['miyu-watchdog']
+
+
+def core_programs(triple):
+    """这个目标的安装包带核心的哪几个程序。"""
+    return CORE_PROGRAMS + ([] if 'windows' in triple else UNIX_PROGRAMS)
 # 网页包的编号，也是网页仓库里那个文件夹的名字（2026-11-12 起包编号不带 miyu-）
 WEB_PACKAGE = 'webui'
 
@@ -94,7 +101,7 @@ Windows only: PowerShell 7 is bundled in ../pwsh/ with its own LICENSE.txt (MIT)
 LICENSES_README = """Licenses of the software in this Miyu package.
 
 miyu-applet/   the tray app (miyu-applet): LICENSE (AGPL-3.0-or-later) and THIRD-PARTY-LICENSES.txt
-miyu/       the core (miyu, miyu-sandbox, miyu-extract and these resources): LICENSE (AGPL-3.0-or-later),
+miyu/       the core (miyu, miyu-sandbox, miyu-extract, on Linux and macOS also miyu-watchdog, and these resources): LICENSE (AGPL-3.0-or-later),
             LICENSES/ (Apache-2.0 for the parts listed in the core's README) and THIRD-PARTY-LICENSES.txt
 miyu-web/   the web app (packages/webui): LICENSE (AGPL-3.0-or-later) and THIRD-PARTY-LICENSES.txt
 """
@@ -139,7 +146,7 @@ def main():
     if out.exists():
         shutil.rmtree(out)
 
-    for name in CORE_PROGRAMS:
+    for name in core_programs(args.triple):
         copy_program(args.core_built or args.core / 'target' / 'release', name, exe, out / 'binaries' / f'{name}-{args.triple}{exe}')
 
     resources = out / 'resources'

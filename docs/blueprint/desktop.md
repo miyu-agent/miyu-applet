@@ -63,11 +63,11 @@
 
 ### 装在哪
 
-外壳和核心的三个程序放在一起：主程序 `miyu`、沙盒助手 `miyu-sandbox`、抽字的 `miyu-extract`（三个平台都带；语义模型 `miyu-embed` 不带，从软件源装；核心的主会话 2026-10-30 定）。主程序找资源目录照核心的规矩（`MIYU_RESOURCES`，程序旁边的 `resources/`，上一级的 `share/miyu/`，上一级的 `Resources/miyu/`）。资源目录是核心仓库的整份 `resources/`，加网页包的文件夹 `packages/miyu-webui/`（出厂层，`heads.toml` 定的发版位置）：清单补上 `version`、不写 `targets`，`web.json`、`matugen/`，`pages/` 是网页 `web-demo/` 里给浏览器的七样，程序 `miyu-web` 放在包文件夹的 `bin/` 里（`miyu web` 先找包文件夹的 `bin/`；网页的会话 2026-10-30 定）。
+外壳和核心的程序放在一起：主程序 `miyu`、沙盒助手 `miyu-sandbox`、抽字的 `miyu-extract`（三个平台都带），Linux、macOS 上另带看门的 `miyu-watchdog`（核心 LW-28 起；Windows 上核心进作业对象，不带）（语义模型 `miyu-embed` 不带，从软件源装；核心的主会话 2026-10-30 定）。主程序找资源目录照核心的规矩（`MIYU_RESOURCES`，程序旁边的 `resources/`，上一级的 `share/miyu/`，上一级的 `Resources/miyu/`）。资源目录是核心仓库的整份 `resources/`，加网页包的文件夹 `packages/miyu-webui/`（出厂层，`heads.toml` 定的发版位置）：清单补上 `version`、不写 `targets`，`web.json`、`matugen/`，`pages/` 是网页 `web-demo/` 里给浏览器的七样，程序 `miyu-web` 放在包文件夹的 `bin/` 里（`miyu web` 先找包文件夹的 `bin/`；网页的会话 2026-10-30 定）。
 
 | 平台 | 程序 | 资源目录 |
 |---|---|---|
-| Linux（deb、rpm、AUR） | `/usr/bin/` 下 `miyu-desktop`、`miyu`、`miyu-sandbox`、`miyu-extract` | `/usr/share/miyu/` |
+| Linux（deb、rpm、AUR） | `/usr/bin/` 下 `miyu-desktop`、`miyu`、`miyu-sandbox`、`miyu-extract`、`miyu-watchdog` | `/usr/share/miyu/` |
 | macOS（`.app`，dmg） | `Miyu.app/Contents/MacOS/` 下四个 | `Miyu.app/Contents/Resources/miyu/`（核心 DT-4 上） |
 | Windows（NSIS） | 安装目录下四个 `.exe` | 安装目录下的 `resources\` |
 

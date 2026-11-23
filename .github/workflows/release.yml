@@ -99,7 +99,12 @@ jobs:
             _web
       - name: 编核心
         working-directory: _core
-        run: cargo build --release --locked -p miyu -p miyu-sandbox -p miyu-extract
+        shell: bash
+        # 看门的小程序 miyu-watchdog 只在 Unix 上带（核心 LW-28）：Windows 上核心进作业对象，不编它。
+        run: |
+          extra=""
+          case "${{ matrix.os }}" in windows-*) ;; *) extra="-p miyu-watchdog" ;; esac
+          cargo build --release --locked -p miyu -p miyu-sandbox -p miyu-extract $extra
       - name: 编网页软件
         working-directory: _web
         run: cargo build --release --locked -p miyu-web
@@ -110,7 +115,7 @@ jobs:
       - name: 包里的核心照常起得来
         shell: bash
         run: |
-          for p in dist/binaries/miyu-*; do case "$p" in *miyu-sandbox*|*miyu-extract*) ;; *) "$p" --version ;; esac; done
+          for p in dist/binaries/miyu-*; do case "$p" in *miyu-sandbox*|*miyu-extract*|*miyu-watchdog*) ;; *) "$p" --version ;; esac; done
           cat dist/pins.txt
       - name: 装 Tauri 的打包工具
         run: cargo install tauri-cli --version =2.12.4 --locked

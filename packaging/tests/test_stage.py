@@ -15,7 +15,7 @@ def write(path, text=''):
 
 def core(root):
     write(root / 'resources' / 'README.md')
-    for name in ('miyu', 'miyu-sandbox', 'miyu-extract'):
+    for name in ('miyu', 'miyu-sandbox', 'miyu-extract', 'miyu-watchdog'):
         write(root / 'target' / 'release' / name)
     write(root / 'LICENSE')
     write(root / 'LICENSES' / 'Apache-2.0.txt')
@@ -51,6 +51,18 @@ class Stage(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
             got = tmp / 'dist' / 'resources' / 'packages' / 'webui' / 'pages'
             return sorted(p.name for p in got.iterdir())
+
+    def test_the_watchdog_is_staged_on_unix_only(self):
+        # 核心 LW-28：看门的小程序只在 Unix 上带，Windows 上核心进作业对象
+        sys.path.insert(0, str(ROOT / 'packaging'))
+        try:
+            import stage
+        finally:
+            sys.path.pop(0)
+        self.assertIn('miyu-watchdog', stage.core_programs('x86_64-unknown-linux-gnu'))
+        self.assertIn('miyu-watchdog', stage.core_programs('aarch64-apple-darwin'))
+        self.assertNotIn('miyu-watchdog', stage.core_programs('x86_64-pc-windows-msvc'))
+        self.assertEqual(stage.core_programs('x86_64-pc-windows-msvc'), ['miyu', 'miyu-sandbox', 'miyu-extract'])
 
     def test_every_page_the_web_packs_is_staged(self):
         # 审计 #082：原来照自己写死的七样拷，漏了网页后来加的 manifest.webmanifest，装好的包里「安装为应用」读它 404

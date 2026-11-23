@@ -13,7 +13,8 @@
     "externalBin": [
       "dist/binaries/miyu",
       "dist/binaries/miyu-sandbox",
-      "dist/binaries/miyu-extract"
+      "dist/binaries/miyu-extract",
+      "dist/binaries/miyu-watchdog"
     ],
     "linux": {
       "deb": {
