@@ -1,0 +1,12 @@
+Usage: miyu-applet [<options>]
+
+Show the Miyu icon in the system tray (the menu bar on macOS) and open the web
+interface in your browser. From the tray menu, you can start or stop Miyu and
+open Settings or the folder that holds the logs.
+
+If the tray is already running, miyu-applet does not start a second one.
+Instead, it asks the running tray to open the web interface.
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
