@@ -26,6 +26,7 @@ mod status;
 mod text;
 mod toast;
 mod tray;
+mod usage;
 
 use std::sync::Arc;
 
@@ -39,6 +40,11 @@ use crate::instance::Claim;
 use crate::text::Text;
 
 fn main() {
+    // `--version`、`--help` 印完就退（施工 AP-24）：在找数据根、单实例、建托盘、连核心、开浏览器之前，什么都不碰。
+    if let Some(early) = usage::early(std::env::args().skip(1)) {
+        usage::answer(early);
+        return;
+    }
     // 堆的两个参数（glibc 上限 arena、定大块门槛）和透明大页（Linux 上给这个进程关掉，核心 YC-12）：托盘常驻，还没起别的线程时
     // 定，同终端、核心的做法。别的平台什么都不做。
     miyu_client::heap::tune();
